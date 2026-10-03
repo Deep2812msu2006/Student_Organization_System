@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
-export const idSchema = z.string().uuid();
+const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+export const idSchema = z.string().regex(uuidRegex, 'Invalid UUID format');
 
 export const idempotencySchema = z.string().min(16).max(100).regex(/^[a-zA-Z0-9_-]+$/);
 
@@ -11,7 +13,7 @@ export const productQuerySchema = z.object({
 }).strict();
 
 export const orderItemSchema = z.object({
-  variantId: z.string().uuid(),
+  variantId: z.string().regex(uuidRegex, 'Invalid variant ID'),
   quantity: z.number().int().min(1).max(50),
 }).strict();
 

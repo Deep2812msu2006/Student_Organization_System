@@ -1,5 +1,6 @@
 import { z } from 'zod';
-export const idSchema=z.string().uuid();
+const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+export const idSchema=z.string().regex(uuidRegex, 'Invalid UUID format');
 export const eventSchema=z.object({
   title:z.string().trim().min(1).max(200),description:z.string().trim().max(5000).default(''),
   venue:z.string().trim().min(1).max(200),startsAt:z.string().datetime({offset:true}),endsAt:z.string().datetime({offset:true}),
