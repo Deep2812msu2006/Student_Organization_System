@@ -1,6 +1,6 @@
 import Joi, { wrap } from './joiHelper.js';
 
-const email = Joi.string().trim().lowercase().email().max(254).required();
+const email = Joi.string().trim().lowercase().email({ tlds: false }).max(254).required();
 
 const password = Joi.string().min(10).custom((value, helpers) => {
   if (Buffer.byteLength(value, 'utf8') > 72) return helpers.error('password.maxBytes');
