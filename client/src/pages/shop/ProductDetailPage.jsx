@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api.js';
 import { money } from '../../utils/format.js';
 import { useCart } from '../../context/CartContext.jsx';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [selectedVariantId, setSelectedVariantId] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -67,6 +68,12 @@ export default function ProductDetailPage() {
     addToCart({ product, variant: selectedVariant, quantity });
     setAddedNotice(true);
     setTimeout(() => setAddedNotice(false), 4000);
+  }
+
+  function handleBuyNow() {
+    if (!selectedVariant || !inStock) return;
+    addToCart({ product, variant: selectedVariant, quantity });
+    navigate('/cart');
   }
 
   return (
@@ -172,8 +179,8 @@ export default function ProductDetailPage() {
             </div>
           )}
 
-          {/* Action Button */}
-          <div style={{ display: 'flex', gap: 'var(--space-4)', marginTop: 'var(--space-4)' }}>
+          {/* Action Buttons: Add to Cart, Buy Now / Pay, Go to Cart */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
             <button
               className="button"
               type="button"
@@ -182,9 +189,40 @@ export default function ProductDetailPage() {
             >
               {!inStock ? 'Sold Out' : remainingStock <= 0 ? 'All in Cart' : 'Add to Cart'}
             </button>
-            <Link className="button button-secondary" to="/cart">
-              Go to Cart
-            </Link>
+            <button
+              className="button"
+              type="button"
+              style={{ background: 'var(--color-primary-dark, #163c34)', color: '#fff' }}
+              disabled={!inStock || remainingStock <= 0}
+              onClick={handleBuyNow}
+            >
+              ⚡ Buy Now / Pay
+            </button>
+          </div>
+
+          {/* Available Payment Options Display */}
+          <div className="payment-options-box" style={{ marginTop: 'var(--space-6)', padding: 'var(--space-4)', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-subtle, #f6f8f7)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontWeight: 600, fontSize: '0.92rem' }}>
+              <span aria-hidden="true">💳</span>
+              <span>Available Payment Options</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
+              <div style={{ padding: 'var(--space-2) var(--space-3)', background: 'var(--color-surface, #fff)', borderRadius: '6px', border: '1px solid var(--color-border)', fontSize: '0.84rem' }}>
+                <strong>📱 UPI</strong>
+                <p className="muted" style={{ margin: '2px 0 0', fontSize: '0.78rem' }}>GPay, PhonePe, Paytm</p>
+              </div>
+              <div style={{ padding: 'var(--space-2) var(--space-3)', background: 'var(--color-surface, #fff)', borderRadius: '6px', border: '1px solid var(--color-border)', fontSize: '0.84rem' }}>
+                <strong>💵 Cash</strong>
+                <p className="muted" style={{ margin: '2px 0 0', fontSize: '0.78rem' }}>At Skyline Club Desk</p>
+              </div>
+              <div style={{ padding: 'var(--space-2) var(--space-3)', background: 'var(--color-surface, #fff)', borderRadius: '6px', border: '1px solid var(--color-border)', fontSize: '0.84rem' }}>
+                <strong>🏦 Bank Transfer</strong>
+                <p className="muted" style={{ margin: '2px 0 0', fontSize: '0.78rem' }}>NEFT / IMPS transfer</p>
+              </div>
+            </div>
+            <p className="muted" style={{ fontSize: '0.8rem', margin: 'var(--space-3) 0 0' }}>
+              ✓ Stock is reserved immediately upon placing your order. Staff records and confirms your payment.
+            </p>
           </div>
         </div>
       </div>

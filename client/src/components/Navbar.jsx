@@ -10,7 +10,7 @@ export default function Navbar(){
  const [open,setOpen]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const {user,logout}=useAuth(),{itemCount}=useCart(),toggle=useRef(null),header=useRef(null),navigate=useNavigate();
  function close(){setOpen(false);header.current?.querySelectorAll('details[open]').forEach(d=>d.open=false);}
- function menu(title,links){return <details className="nav-dropdown"><summary>{title}<span aria-hidden="true">⌄</span></summary><div className="nav-dropdown-panel">{links.map(x=><NavLink key={x.href} to={x.href} onClick={close}>{x.label}</NavLink>)}</div></details>;}
+ function menu(title,links){return <details className="nav-dropdown"><summary>{title}<svg className="nav-chevron" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 4.5L6 8L9.5 4.5"/></svg></summary><div className="nav-dropdown-panel">{links.map(x=><NavLink key={x.href} to={x.href} onClick={close}>{x.label}</NavLink>)}</div></details>;}
  async function signOut(){setBusy(true);setError('');try{await logout();close();navigate('/login');}catch(e){setError(e.message);}finally{setBusy(false);}}
  const staffLinks=user?navigation.staff.filter(x=>x.roles.some(r=>user.roles.includes(r))):[];
  return <header className="navbar" ref={header} onKeyDown={e=>{if(e.key==='Escape'){close();toggle.current?.focus();}}}><div className="container navbar-inner">
