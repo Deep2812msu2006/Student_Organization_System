@@ -20,6 +20,26 @@ Staff treasurer screens use `PaymentPage.jsx` (Merchandise Orders tab) → reque
 
 When staff records payment: `PaymentPage.jsx` opens modal labeled "Record manual payment received", preserves generated `Idempotency-Key` across uncertain retries → submits `POST /api/v1/payments/merchandise/manual` with CSRF token and payload `{ orderId, amountMinor, currency, method, externalReference?, notes? }` → `checkin.routes.js` validates input and permissions → `payment.service.js` scopes idempotency key to staff user (`scopedKey(staffId, key)`) → pre-validates order status → checks out transaction client (`BEGIN`) → acquires order row lock via `payment.model.js` `lockOrderForPayment` (`SELECT ... FOR UPDATE`) → verifies status is still `pending` and amounts match → inserts durable payment evidence via `payment.model.js` `insertPaymentRecord` linking `order_id` → updates order status to `paid` and stamps `paid_at` via `confirmOrderPayment` → `COMMIT` → returns sanitized payment and order data with 201 (or 200 replay on identical duplicate). UI refreshes pending list and displays success feedback.
 
+## Membership dues manual payment and waiver flow
+
+Staff reviews pending membership dues via `GET /api/v1/dues/pending` → `finance.routes.js` (`auth` + `paymentStaff` allowing `treasurer` and `organizer`) → `payment.service.js` `listPendingDues` → `payment.model.js` `listPendingDuesObligations`.
+
+When staff records payment: client submits `POST /api/v1/payments/dues/manual` with `Idempotency-Key` header and `{ duesObligationId, amountMinor, currency, method, externalReference?, notes? }` → `finance.routes.js` validates input and permissions → `payment.service.js` scopes idempotency key (`scopedKey(staffId, key)`) → checks out transaction client (`BEGIN`) → acquires advisory transaction lock on scoped key → locks obligation row via `payment.model.js` `lockDuesObligationForPayment` (`FOR UPDATE`) → validates `status === 'pending'`, amount, and currency → inserts durable audit evidence into `payment_records` linking `dues_obligation_id` (@rule:PAYMENT_TARGET_MUTEX) → updates obligation status to `paid` and stamps `paid_at` via `confirmDuesPayment` (@rule:DUES_PAYMENT_ONCE) → calls `member.model.js` `getMemberProfile` to re-evaluate current membership status (@rule:MEMBERSHIP_VALIDITY) → `COMMIT` → returns payment evidence, updated obligation, and refreshed active member profile. Waivers (`POST /api/v1/dues/:id/waive`) conditionally transition obligation to `waived` without creating `payment_records` rows.
+
+## Volunteer expense submission, decision, and reimbursement flow
+
+Volunteer uploads receipt via `POST /api/v1/expenses/receipts` (base64 JSON or binary stream, validated max 5MB and JPEG/PNG/WebP/PDF mime types) → stored in private `server/storage/receipts` outside public assets with unique unguessable filename → returns `receiptKey`.
+
+Volunteer submits claim via `POST /api/v1/expenses` with `{ amountMinor, currency, purpose, receiptKey }` → `expense.service.js` → `expense.model.js` `createExpense` in `submitted` status. Volunteer reviews personal submission history via `GET /api/v1/expenses` (scoped to `requester_id = req.user.id`). Private receipt download via `GET /api/v1/expenses/:id/receipt` verifies requester or staff authorization before streaming.
+
+Staff treasurer reviews claims via `GET /api/v1/expenses?status=submitted` → approves or rejects via `PATCH /api/v1/expenses/:id/decision`. **Segregation of duties (@rule:EXPENSE_NO_SELF_APPROVAL)** strictly prevents submitters from reviewing or deciding their own claims (HTTP 403 `CANNOT_APPROVE_OWN_EXPENSE`). Rejection requires an explicit reason.
+
+Reimbursement payout is recorded via `POST /api/v1/expenses/:id/reimburse` with required `Idempotency-Key` and optional payment reference → enforces submitter cannot reimburse their own claim (@rule:EXPENSE_NO_SELF_APPROVAL) → acquires advisory lock on scoped key → locks approved expense row (`lockExpenseForReimbursement`) → transitions status `approved` → `reimbursed` (@rule:EXPENSE_TRANSITIONS, @rule:REIMBURSEMENT_ONCE) → `COMMIT`.
+
+## Financial summary reporting flow
+
+Staff treasurer requests `GET /api/v1/finance/summary` (optional `from` and `to` ISO timestamps) → `finance.routes.js` → `finance.service.js` → `finance.model.js` `getFinancialSummary`. Aggregates durable payment records across dues, events, and merchandise as actual revenues; aggregates reimbursed expenses as disbursements; tracks approved-but-unpaid expenses as committed liabilities; and tracks uncollected dues (pending vs waived). Strict multi-currency partitioning prevents adding different currencies together. Clearly documents net recorded movement (`totalReceipts - reimbursedExpenses`) as transactional cash movement, not an audited bank balance.
+
 > This describes the original foundation. Authentication and membership now work; see [the current walkthrough and handoff](AUTH_MEMBERSHIP_HANDOFF.md). Business requests now pass through PostgreSQL sessions, CSRF verification, strict validation and role checks before the service/model layer.
 
 ## What happens when the page loads?

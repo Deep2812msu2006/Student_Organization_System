@@ -6,6 +6,7 @@ import {eventRouter} from './routes/event.routes.js';
 import { checkinRouter } from './routes/checkin.routes.js';
 import { merchandiseRouter } from './routes/merchandise.routes.js';
 import { healthRouter } from './routes/health.routes.js';
+import { financeRouter } from './routes/finance.routes.js';
 import { errorHandler, notFound } from './middleware/error.middleware.js';
 
 export function createApp(database, config = {}) {
@@ -25,7 +26,8 @@ export function createApp(database, config = {}) {
       eventRouter(database.pool, config),
       memberRouter(database.pool, config),
       checkinRouter(database.pool, config),
-      merchandiseRouter(database.pool, config)
+      merchandiseRouter(database.pool, config),
+      financeRouter(database.pool, config)
     );
   }
   // Without configured DB/session secret, no business route is exposed.
