@@ -145,6 +145,26 @@ Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relativ
 - Schema: database/migrations/006_payment_records.sql. Additive migration, no existing tables modified.
 - Validation: server/validators/checkin.schema.js. Zod schemas for check-in and payment requests.
 
+## Merchandise stock and ordering rules
+
+- Tag: `@rule:VARIANT_LOCK_ORDER`
+- Model: `server/model/merchandise.model.js`, `lockVariantsForOrder`.
+- Invariant: Multi-item checkouts sort variant IDs and lock rows with `ORDER BY id ASC FOR UPDATE` to avoid PostgreSQL deadlocks under concurrency.
+
+- Tag: `@rule:STOCK_DEDUCT_ON_ORDER`
+- Schema: `database/migrations/007_merchandise_and_orders.sql`, `CHECK (stock_quantity >= 0)`.
+- Model: `server/model/merchandise.model.js`, `decrementVariantStock`.
+- Invariant: Stock is decremented inside the order creation transaction. If any item is out of stock, the entire transaction rolls back cleanly.
+
+- Tag: `@rule:ORDER_IDEMPOTENCY`
+- Schema: `database/migrations/007_merchandise_and_orders.sql`, UNIQUE constraint on `orders.idempotency_key`.
+- Model: `server/model/merchandise.model.js`, `insertOrder`, `findOrderByIdempotencyKey`.
+- Invariant: Orders with matching idempotency key and matching payload return the existing order. Replays with changed payloads are rejected.
+
+- Tag: `@rule:STOCK_RESTORE_ON_CANCEL`
+- Model: `server/model/merchandise.model.js`, `cancelOrder`.
+- Invariant: Order cancellation conditionally transitions status `WHERE status IN ('pending', 'paid')` and restores variant stock for each item inside the transaction. Subsequent cancellation calls affect 0 rows and cannot double-restore stock.
+
 ## Planned features — not yet implemented
 
-Merchandise stock, expense approvals, financial reporting, business navigation and remaining permissions have no business implementation yet. Use API_CONTRACT.md to coordinate future files. Once implemented, put @rule comments beside the authoritative server/SQL logic and add the actual file/function here.
+Expense approvals, financial reporting, business navigation and remaining permissions have no business implementation yet. Use API_CONTRACT.md to coordinate future files. Once implemented, put @rule comments beside the authoritative server/SQL logic and add the actual file/function here.

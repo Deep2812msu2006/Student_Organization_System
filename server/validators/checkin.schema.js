@@ -7,15 +7,17 @@
 
 import { z } from 'zod';
 
+const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 // @edit:CHECKIN_UI — Check-in request body
 export const checkinSchema = z.object({
-  eventId: z.string().uuid('Invalid event ID.'),
+  eventId: z.string().regex(uuidRegex, 'Invalid event ID.'),
   ticketToken: z.string().min(1, 'Admission code is required.').max(200, 'Admission code is too long.'),
 }).strict();
 
 // @edit:PAYMENT_UI — Manual payment confirmation request body
 export const paymentSchema = z.object({
-  registrationId: z.string().uuid('Invalid registration ID.'),
+  registrationId: z.string().regex(uuidRegex, 'Invalid registration ID.'),
   amountMinor: z.number().int().min(0).max(100000000),
   currency: z.enum(['INR', 'USD', 'EUR', 'GBP']),
   method: z.string().trim().min(1).max(50),

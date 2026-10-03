@@ -98,11 +98,22 @@ findRegistrationById(db, registrationId) // → registration row or null
 findRegistrationByIdempotencyKey(db, idempotencyKey) // → registration row or null
 updateRegistrationStatus(client, { registrationId, status }) // → updated registration row or null
 
-// order.model.js
-lockVariants(client, variantIds) // deterministic order; rows FOR UPDATE
-decrementStock(client, { variantId, quantity }) // conditional update → row or null
-insertOrder(client, { userId, currency, totalMinor, status, idempotencyKey })
-insertOrderItem(client, { orderId, variantId, quantity, unitPriceMinor })
+// merchandise.model.js / order.model.js (Implemented in server/model/merchandise.model.js)
+listPublishedProducts(db, { page, pageSize, category }) // → { rows, total, page, pageSize }
+getProductById(db, productId) // → product with variants or null
+createProduct(db, { name, description, category, isPublished, createdBy })
+createProductVariant(db, { productId, name, sku, priceMinor, currency, stockQuantity, isActive })
+lockVariantsForOrder(client, variantIds) // deterministic order (UUID ASC); rows FOR UPDATE (@rule:VARIANT_LOCK_ORDER)
+decrementVariantStock(client, { variantId, quantity }) // conditional update → row or null (@rule:STOCK_DEDUCT_ON_ORDER)
+incrementVariantStock(client, { variantId, quantity }) // → row or null
+insertOrder(client, { userId, currency, totalMinor, status, idempotencyKey, payloadHash })
+insertOrderItem(client, { orderId, variantId, productNameSnapshot, variantNameSnapshot, unitPriceMinor, quantity, totalMinor })
+findOrderById(db, orderId) // → order or null
+findOrderByIdempotencyKey(db, idempotencyKey) // → order or null (@rule:ORDER_IDEMPOTENCY)
+getOrderDetails(db, orderId, userId) // → order with items snapshot
+cancelOrder(client, { orderId, actorId, reason, at }) // conditional update + stock restore (@rule:STOCK_RESTORE_ON_CANCEL)
+updateOrderStatus(client, { orderId, status, paidAt, fulfilledAt })
+listUserOrders(db, userId, { page, pageSize }) // → paginated orders with items
 
 // expense.model.js / payment.model.js / finance.model.js
 insertExpense(db, { requesterId, amountMinor, currency, purpose, receiptKey })
