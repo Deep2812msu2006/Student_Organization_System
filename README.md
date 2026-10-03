@@ -113,4 +113,4 @@ docs/        contracts, ownership, requirements, quick edits and walkthrough
 - [Code walkthrough](docs/CODE_WALKTHROUGH.md)
 - [Verification record](docs/VERIFICATION.md)
 
-Om owns UI/core APIs; Deep owns schema/models/transactions; Dharmik owns supporting APIs/testing/delivery. Start with Deep's users/memberships data contract, then Om's real signup-to-database flow. All teammates use their own feature branches and commits. No pushes or merges are performed by this setup automatically.
+Om owns UI/core APIs; Deep owns schema/models/transactions; Dharmik owns supporting APIs/testing/delivery. Start with Deep's users/memberships data contract, then Om's real signup-to-database flow. All teammates use their own feature branches and commits. No pushes or merges are performed by this setup automatically...
