@@ -24,7 +24,7 @@ test('merchandise API: catalog, ordering, idempotency, stock allocation, tamper 
   await new Promise(resolve => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}/api/v1`;
 
-  const prefix = `merch-api-${randomUUID()}`;
+  const prefix = `m-${randomUUID().slice(0, 8)}`;
   const userIds = [];
   const productIds = [];
 
@@ -48,7 +48,7 @@ test('merchandise API: catalog, ordering, idempotency, stock allocation, tamper 
 
   function agent() {
     let cookie = '', csrf = '';
-    return async (path, method = 'GET', body, headers = {}) => {
+    const fn = async (path, method = 'GET', body, headers = {}) => {
       const response = await fetch(base + path, {
         method,
         headers: {
@@ -65,6 +65,9 @@ test('merchandise API: catalog, ordering, idempotency, stock allocation, tamper 
       if (data?.data?.csrfToken) csrf = data.data.csrfToken;
       return { status: response.status, ...data };
     };
+    fn.getCookie = () => cookie;
+    fn.getCsrf = () => csrf;
+    return fn;
   }
 
   async function account(label, role = 'member') {
@@ -137,7 +140,7 @@ test('merchandise API: catalog, ordering, idempotency, stock allocation, tamper 
   const noCsrfAgent = agent();
   const unauthCsrfRes = await noCsrfAgent('/orders', 'POST', orderPayload, {
     'Idempotency-Key': validKey,
-    Cookie: customer1.call.toString(), // invalid/missing csrf
+    Cookie: customer1.call.getCookie(), // authenticated cookie without X-CSRF-Token
   });
   assert.equal(unauthCsrfRes.status, 403);
 

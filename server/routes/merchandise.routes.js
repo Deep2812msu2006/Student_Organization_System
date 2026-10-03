@@ -53,7 +53,7 @@ export function merchandiseRouter(pool, _config) {
   // ─── Authenticated Order Endpoints ──────────────────────────────────────────
 
   // POST /orders: Place order with atomic stock allocation and idempotency key
-  router.post('/orders', requireCsrf, auth, validate(orderCreateSchema), async (req, res) => {
+  router.post('/orders', auth, requireCsrf, validate(orderCreateSchema), async (req, res) => {
     const rawKey = req.get('Idempotency-Key');
     const parsedKey = idempotencySchema.safeParse(rawKey);
     if (!parsedKey.success) {
@@ -91,7 +91,7 @@ export function merchandiseRouter(pool, _config) {
   });
 
   // POST /orders/:id/cancel: Customer cancellation (restores stock if pending/paid)
-  router.post('/orders/:id/cancel', requireCsrf, auth, validate(cancelOrderSchema), async (req, res) => {
+  router.post('/orders/:id/cancel', auth, requireCsrf, validate(cancelOrderSchema), async (req, res) => {
     const order = await service.cancelCustomerOrder(
       pool,
       req.params.id,

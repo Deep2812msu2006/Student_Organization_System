@@ -118,14 +118,42 @@ cancelOrder(client, { orderId, actorId, reason, at }) // conditional update + st
 updateOrderStatus(client, { orderId, status, paidAt, fulfilledAt })
 listUserOrders(db, userId, { page, pageSize }) // → paginated orders with items
 
-// expense.model.js / payment.model.js / finance.model.js
+// payment.model.js (Implemented in server/model/payment.model.js — Supports Event Tickets & Merchandise Orders)
+insertPaymentRecord(client, { registrationId, orderId, amountMinor, currency, method, externalReference, notes, recordedBy, idempotencyKey }) // → payment record (@rule:PAYMENT_TARGET_MUTEX, @rule:PAYMENT_EVIDENCE)
+findPaymentByIdempotencyKey(db, idempotencyKey) // → payment record or null
+findPaymentsByRegistration(db, registrationId) // → array of payment records for event registration
+findPaymentByOrder(db, orderId) // → payment record for merchandise order or null
+lockOrderForPayment(client, orderId) // locks order row FOR UPDATE (@rule:ORDER_LOCK_ORDER)
+confirmOrderPayment(client, { orderId, paidAt }) // conditional update pending → paid (@rule:PAYMENT_ONCE)
+confirmRegistration(client, registrationId) // conditional update pending → confirmed (@rule:PAYMENT_ONCE)
+listPendingRegistrations(db, eventId) // → pending registrations for event
+listPendingOrders(db, { page, pageSize }) // → paginated pending merchandise orders with items for treasurer
+getAttendanceTotals(db, eventId) // → database-backed attendance summary
+
+// merchandise.model.js (Implemented in server/model/merchandise.model.js)
+listPublishedProducts(db, { page, pageSize, category }) // → { rows, total, page, pageSize }
+getProductById(db, productId) // → product with variants or null
+createProduct(db, { name, description, category, isPublished, createdBy })
+createProductVariant(db, { productId, name, sku, priceMinor, currency, stockQuantity, isActive })
+lockVariantsForOrder(client, variantIds) // deterministic order (UUID ASC); rows FOR UPDATE (@rule:VARIANT_LOCK_ORDER)
+decrementVariantStock(client, { variantId, quantity }) // conditional update → row or null (@rule:STOCK_DEDUCT_ON_ORDER)
+incrementVariantStock(client, { variantId, quantity }) // → row or null
+insertOrder(client, { userId, currency, totalMinor, status, idempotencyKey, payloadHash })
+insertOrderItem(client, { orderId, variantId, productNameSnapshot, variantNameSnapshot, unitPriceMinor, quantity, totalMinor })
+findOrderById(db, orderId) // → order or null
+findOrderByIdempotencyKey(db, idempotencyKey) // → order or null (@rule:ORDER_IDEMPOTENCY)
+getOrderDetails(db, orderId, userId) // → order with items snapshot
+cancelOrder(client, { orderId, actorId, reason, at }) // locks order FOR UPDATE, conditional update pending → cancelled + restores stock exactly once (@rule:PENDING_ONLY_CANCEL, @rule:ORDER_LOCK_ORDER, @rule:STOCK_RESTORE_ON_CANCEL)
+updateOrderStatus(client, { orderId, status, paidAt, fulfilledAt })
+listUserOrders(db, userId, { page, pageSize }) // → paginated orders with items
+
+// expense.model.js / finance.model.js (Planned)
 insertExpense(db, { requesterId, amountMinor, currency, purpose, receiptKey })
 decideExpense(client, { expenseId, actorId, decision, reason }) // legal transition only
 markReimbursed(client, { expenseId, actorId, at, idempotencyKey }) // approved→paid once
-recordPayment(client, { purpose, referenceId, amountMinor, currency, method, actorId, idempotencyKey })
 getFinanceSummary(db, { from, to, currency })
 
-// task.model.js / announcement.model.js
+// task.model.js / announcement.model.js (Planned)
 createTask(db, { title, assigneeId, dueAt, projectLabel, createdBy })
 updateTaskStatus(db, { taskId, actorId, status }) // service supplies authorized actor
 createAnnouncement(db, { title, body, audience, authorId })
@@ -135,15 +163,25 @@ claimDelivery(client, { messageKind, sourceId, recipientId, deduplicationKey })
 
 Null from a conditional mutation means no eligible row changed; the service maps the reason to a safe not-found/conflict/forbidden response without leaking private data. Unique violations should map to documented domain conflicts. No model accepts arbitrary column names or raw SQL from clients.
 
-## Transaction ownership
+## Transaction ownership and lock ordering
 
-- Om's registration service: acquire one client → BEGIN → validate current membership/pricing evidence → lock event → check allocation → insert registration and related records → COMMIT. Every capacity-changing flow uses the same event lock policy.
-- Om's order service: one client/transaction → lock variants deterministically → verify eligibility and prices → decrement/reserve stock → insert order/items and related records → commit; any failure rolls back all changes.
-- Dharmik's check-in service: conditional update enforces one-time eligibility; use one client transaction if also writing an audit record.
-- Dharmik's payment/reimbursement service: validate expected amount/permissions and state, mutate payment/source state and audit once within one transaction.
+- **Om's registration service**: acquire one client → BEGIN → validate current membership/pricing evidence → lock event → check allocation → insert registration and related records → COMMIT. Every capacity-changing flow uses the same event lock policy.
+- **Om's order service**: one client/transaction → lock variants deterministically (`ORDER BY id ASC FOR UPDATE`) → verify eligibility and prices → decrement/reserve stock → insert order/items and related records → COMMIT; any failure rolls back all changes.
+- **Dharmik's check-in service**: conditional update enforces one-time eligibility; use one client transaction if also writing an audit record.
+- **Dharmik's payment confirmation services (Event & Merchandise)**:
+  - Acquire one client → `BEGIN`.
+  - Check idempotency: if key exists, verify matching payload or reject conflict.
+  - **Lock ordering (@rule:ORDER_LOCK_ORDER)**: Lock target entity first (`lockOrderForPayment` or `lockEventForBooking`).
+  - Validate exact amount and currency match the snapshot.
+  - Write durable payment evidence into `payment_records` referencing either `registration_id` OR `order_id` (@rule:PAYMENT_TARGET_MUTEX).
+  - Conditionally update target status (`confirmOrderPayment` pending → paid, or `confirmRegistration` pending → confirmed).
+  - If target was not in pending status (e.g. cancelled concurrently), ROLLBACK and return 409 conflict.
+  - `COMMIT` and return payment audit + updated order/registration details.
+- **Cancellation lock ordering**: `cancelOrder` acquires `SELECT id, status FROM orders WHERE id = $1 FOR UPDATE` as its first step. Because payment confirmation and cancellation lock the exact same order row first, concurrent payment vs cancellation requests serialize cleanly with zero deadlocks.
+- **Paid-order cancellation restriction (@rule:PENDING_ONLY_CANCEL)**: For the current milestone, customer cancellation is allowed only while `pending`. Paid order cancellation is rejected at the model level until an audited refund/credit note workflow is designed.
+- **Membership dues status & remaining gap**: Dues obligations currently record status (`pending`/`paid`/`waived`) and a textual `payment_ref`. To achieve parity with event registrations and merchandise orders, a future additive migration can extend `payment_records` with `dues_obligation_id` (or link `dues_obligations.payment_id` FK). This gap is documented for the future membership dues payment milestone.
 - All transaction services rollback on failure and release clients in finally. Never mix pool.query with client.query inside one transaction.
 - Mail/network calls occur after commit, using delivery/outbox state. Do not hold row locks while calling external payment/mail services.
-- Asynchronous payments need expiring seat/stock reservations, idempotent provider callbacks and release on failure. Manual demo mode must define allocation rules honestly. This foundation does not choose or implement either mode.
 
 ## Decisions to settle before business coding
 

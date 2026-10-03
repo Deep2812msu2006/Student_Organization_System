@@ -201,12 +201,12 @@ export async function cancelCustomerOrder(pool, orderId, userId, reason) {
     throw new HttpError(409, 'ALREADY_CANCELLED', 'This order is already cancelled.');
   }
 
-  if (existing.status === 'fulfilled') {
-    throw new HttpError(409, 'ORDER_FULFILLED', 'Fulfilled orders cannot be cancelled.');
+  if (existing.status === 'paid') {
+    throw new HttpError(409, 'CANNOT_CANCEL', 'Paid orders cannot be cancelled directly. Contact staff for assistance.');
   }
 
-  if (existing.status !== 'pending' && existing.status !== 'paid') {
-    throw new HttpError(409, 'CANNOT_CANCEL', 'Only pending or paid orders can be cancelled.');
+  if (existing.status !== 'pending') {
+    throw new HttpError(409, 'CANNOT_CANCEL', 'Only pending orders can be cancelled.');
   }
 
   return transaction(pool, async client => {
