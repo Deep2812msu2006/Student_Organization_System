@@ -2,6 +2,7 @@
   "name": "student-organization-system",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "workspaces": [
     "client",
     "server"
@@ -15,7 +16,11 @@
     "dev:server": "npm run dev -w server",
     "build": "npm run build -w client",
     "test": "npm run test -w server",
-    "start": "npm run start -w server"
+    "start": "npm run start -w server",
+    "migrate": "node database/migrate.js",
+    "migrate:status": "node database/migrate.js --status",
+    "seed:dev": "node database/seed.js",
+    "test:models": "node --test server/tests/auth.model.test.js server/tests/member.model.test.js"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

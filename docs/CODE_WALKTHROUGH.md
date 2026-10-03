@@ -44,3 +44,36 @@ Controllers translate HTTP to domain input/output. Services own business decisio
 ## Current checks
 
 server/tests/health.test.js tests health/liveness, database exceptions, missing configuration, unknown routes and malformed/oversized JSON using an injected test database dependency. These tests do not alone prove PostgreSQL connectivity. A live PostgreSQL smoke check is separate. npm run build compiles the actual React application. See VERIFICATION.md for the checks actually run during this foundation work.
+
+server/tests/auth.model.test.js and server/tests/member.model.test.js test the SQL models. They skip gracefully when NODE_TEST_DATABASE_URL is not set; run `npm test` to see skip markers, or set the variable and run `npm run test:models` to execute them against a real database.
+
+## Database flow (deep/database-foundation additions)
+
+### How migrations run
+
+`npm run migrate` invokes `database/migrate.js`. The runner reads `server/.env` through `server/config/env.js` (same path logic as the API). It bootstraps `schema_migrations`, loads already-applied names, then iterates `database/migrations/NNN_*.sql` files in sorted order. Each unapplied file runs inside a transaction (BEGIN → DDL → INSERT INTO schema_migrations → COMMIT). If a migration fails, the transaction rolls back and the runner exits. Re-running is always safe.
+
+### How models work
+
+`server/model/auth.model.js` and `server/model/member.model.js` export plain async functions that accept `db` (a `pg.Pool` or `pg.PoolClient`). They never call `BEGIN`, `COMMIT` or `ROLLBACK`. They never send HTTP responses. Om's service checks out a client, calls `BEGIN`, calls the model functions with the client, then calls `COMMIT` or `ROLLBACK` in a `finally` block. This guarantees all queries in one service operation use the same database connection.
+
+### Searchable code tags
+
+- `@rule:EMAIL_UNIQUENESS` — `database/migrations/002_users_and_roles.sql` (index), `server/model/auth.model.js` (lookup/insert).
+- `@rule:MEMBERSHIP_VALIDITY` — `database/migrations/003_membership.sql` (schema/constraints), `server/model/member.model.js` (CASE expression in getMemberProfile).
+- `@flow:MEMBER_PERSISTENCE` — `server/model/auth.model.js` (createUser, assignRole), `server/model/member.model.js` (createMembership), `database/seeds/001_dev_users.js`, `database/seeds/002_dev_memberships.js`.
+- `@flow:DATABASE_HEALTH` — `server/controllers/health.controller.js` (SELECT 1, unchanged from foundation).
+- `@edit:ADD_MIGRATION` — `docs/QUICK_CHANGE_GUIDE.md`, `database/migrations/` (add NNN_description.sql).
+
+### Key constraints enforced at DB level
+
+| Rule | Mechanism | Location |
+|---|---|---|
+| Email uniqueness (case-insensitive) | UNIQUE INDEX on `lower(email)` | 002 migration |
+| Password never exposed | Model function returns column list (no hash) | auth.model.js |
+| Money is integer-only | `INTEGER NOT NULL` columns for `*_amount_minor` | 003 migration |
+| Timestamps with timezone | `TIMESTAMPTZ NOT NULL` everywhere | 002–003 |
+| expires_at > starts_at | CHECK constraint | 003 migration |
+| Dues paid requires paid_at | CHECK `status != 'paid' OR paid_at IS NOT NULL` | 003 migration |
+| Role set is fixed | CHECK constraint on `app_roles.name` | 002 migration |
+
