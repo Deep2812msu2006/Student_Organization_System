@@ -1,5 +1,15 @@
 # Quick change guide
 
+## Events and tickets (implemented)
+
+- `@edit:EVENT_LIST` and `@edit:EVENT_CARD`: client/src/pages/events/EventsPage.jsx. Verify public and organizer lists, pagination and empty state.
+- `@edit:EVENT_FORM`: client/src/pages/events/EventForm.jsx. Validate dates/capacity/minor-unit prices; update server/validators/event.schema.js if changing permitted input.
+- `@edit:TICKET_LAYOUT`: client/src/pages/events/TicketsPage.jsx. Check pending has no admission code, confirmed eligibility and narrow screens.
+- `@flow:EVENT_REGISTRATION`: server/services/event.service.js. Test price snapshots, duplicate keys and simultaneous last-seat requests.
+- `@rule:EVENT_MEMBER_PRICE`: same service. Paid/current membership selects event member price without a second discount.
+- Deep's existing `@rule:EVENT_CAPACITY`: server/model/event.model.js. Keep all allocation mutations under the event row lock.
+- Layout: client/src/styles/events.css. Ticket token format: server/utils/ticketToken.js. Never expose keys/hash values while editing presentation.
+
 ## Authentication and membership additions
 
 - `@edit:MEMBERSHIP_FORM`: client/src/pages/auth/AuthPage.jsx. Server rules: server/validators/auth.schema.js. Check form errors, signup and login.
