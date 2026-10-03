@@ -1,0 +1,46 @@
+# Foundation walkthrough
+
+## What happens when the page loads?
+
+client/index.html loads client/src/main.jsx. React mounts App, which uses PublicLayout and HomePage. PublicLayout renders the skip link, Navbar, main landmark and footer. HomePage renders static roadmap/copy and a real ConnectionStatus component. Roadmap copy is static presentation metadata, not fabricated business data.
+
+Navbar reads public links from config/navigation.js and brand values from config/site.js. Mobile menu state belongs to Navbar; Escape closes it and returns focus. All colors and spacing begin in styles/tokens.css. The required @edit comments are there or beside their config object.
+
+## Where does the browser request enter?
+
+ConnectionStatus calls useHealth, which calls getHealth in services/healthApi.js. fetch('/api/health') goes to Vite on the browser's origin. Vite's development/preview proxy forwards /api to Express (default port 5000). Browser code never connects directly to PostgreSQL and receives no database credentials.
+
+useHealth cancels replaced/unmounted requests and gives up after ten seconds. Errors are shown honestly; “Check again” starts a new request. The UI does not poll continuously or claim that health implies business features are ready.
+
+## How does the server start?
+
+server/server.js reads server/.env through config/env.js using a path relative to the source file, so root workspace commands work. Configuration validates URL/port/pool bounds without printing the connection string. createDatabase in config/db.js creates a single pg pool only when DATABASE_URL exists. No implicit fallback to machine PG credentials is allowed.
+
+createApp in app.js wires Helmet security headers, a bounded JSON parser, the liveness route, health router and safe errors. HOST defaults to loopback. The entry point handles shutdown and closes the pool.
+
+## Where does SQL run?
+
+routes/health.routes.js maps GET /api/health to createHealthController in controllers/health.controller.js. The @flow:DATABASE_HEALTH comment marks the real SELECT 1 query. This fixed query has no user input, so no interpolation is involved. Future business SQL belongs in server/model and must use pg parameters ($1, $2, ...).
+
+No database schema is needed for health. Missing configuration or driver failure returns 503 without credentials or driver stack traces. GET /api/live returns 200 independently of PostgreSQL. An unknown business endpoint returns 404 rather than placeholder success.
+
+## What is validated now?
+
+Configuration bounds and PostgreSQL URL format; request JSON syntax and 100 KB body limit; expected health response shape on the client. There are no business forms or business permissions yet. Helmet is a baseline, not a substitute for auth, CSRF protection, validation or authorization.
+
+## Why separate controller/service/model?
+
+Controllers translate HTTP to domain input/output. Services own business decisions and transaction boundaries. Models own parameterized SQL. Deep implements the agreed model signatures; Om/Dharmik call them with the same checked-out client during a transaction. This avoids different queries accidentally running on different database connections.
+
+## Questions judges may ask
+
+- Is the data dynamic? The current health status is from a real API/database query. The cards are clearly labeled roadmap content. Business records are not implemented yet.
+- Can I change navbar color quickly? Search @edit:NAVBAR_COLORS in tokens.css. Navbar.css consumes these variables.
+- Can a hidden menu protect an API? No. Future permissions must be enforced by the server per route and record.
+- What prevents duplicate bookings/check-ins? Nothing is implemented for those modules yet. API_CONTRACT.md proposes row locking, uniqueness, idempotency and conditional updates for Deep/service owners to implement and test.
+- Is the app production-ready? No. There is no auth or business schema. Current server binds locally; production needs HTTPS, application security, deployment routing and operational configuration.
+- Is Odoo used? No. The user selected React/Express/PostgreSQL; no supplied requirement mandates Odoo integration.
+
+## Current checks
+
+server/tests/health.test.js tests health/liveness, database exceptions, missing configuration, unknown routes and malformed/oversized JSON using an injected test database dependency. These tests do not alone prove PostgreSQL connectivity. A live PostgreSQL smoke check is separate. npm run build compiles the actual React application. See VERIFICATION.md for the checks actually run during this foundation work.
