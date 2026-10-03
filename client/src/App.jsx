@@ -31,7 +31,7 @@ export default function App(){return <BrowserRouter><AuthProvider><CartProvider>
   <Route path="/shop/:id" element={<ProductDetailPage/>}/>
   <Route path="/cart" element={<CartPage/>}/>
   <Route element={<ProtectedRoute/>}><Route path="/orders" element={<OrdersPage/>}/><Route path="/orders/:id" element={<OrderDetailPage/>}/></Route>
-  <Route path="/events" element={<EventsPage/>}/><Route path="/events/:id" element={<EventDetails/>}/><Route element={<ProtectedRoute/>}><Route path="/tickets" element={<TicketsPage/>}/></Route><Route element={<ProtectedRoute role="organizer"/>}><Route path="/organizer/events" element={<EventsPage manage/>}/><Route path="/events/new" element={<EventForm key="new"/>}/><Route path="/events/:id/edit" element={<EventForm/>}/><Route path="/staff/checkin" element={<CheckInPage/>}/><Route path="/staff/payments" element={<PaymentPage/>}/></Route>
+  <Route path="/events" element={<EventsPage/>}/><Route path="/events/:id" element={<EventDetails/>}/><Route element={<ProtectedRoute/>}><Route path="/tickets" element={<TicketsPage/>}/></Route><Route element={<ProtectedRoute role="organizer"/>}><Route path="/organizer/events" element={<EventsPage manage/>}/><Route path="/events/new" element={<EventForm key="new"/>}/><Route path="/events/:id/edit" element={<EventForm/>}/><Route path="/staff/checkin" element={<CheckInPage/>}/></Route><Route element={<ProtectedRoute role={['organizer','treasurer']}/>}><Route path="/staff/payments" element={<PaymentPage/>}/></Route>
   <Route path="/login" element={<AuthPage key="login" mode="login"/>}/>
   <Route path="/register" element={<AuthPage key="register" mode="register"/>}/>
   <Route element={<ProtectedRoute/>}><Route path="/membership" element={<MembershipPage/>}/></Route>

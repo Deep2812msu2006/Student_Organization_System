@@ -1,25 +1,57 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { useAuth } from './AuthContext.jsx';
 
 const CartContext = createContext(null);
-const CART_STORAGE_KEY = 'skyline_merch_cart';
+const LEGACY_STORAGE_KEY = 'skyline_merch_cart';
 
 export function CartProvider({ children }) {
+  const { user } = useAuth();
+  const userId = user?.id || null;
+  const storageKey = userId ? `skyline_merch_cart_${userId}` : 'skyline_merch_cart_guest';
+
+  // Always purge legacy shared storage key so previous test items don't leak to all users
+  try {
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {}
+
   const [items, setItems] = useState(() => {
     try {
-      const saved = localStorage.getItem(CART_STORAGE_KEY);
+      const saved = localStorage.getItem(storageKey);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
 
+  const prevUserIdRef = useRef(userId);
+
+  // When user logs in, logs out, or switches accounts, switch to that user's cart
+  useEffect(() => {
+    if (prevUserIdRef.current !== userId) {
+      prevUserIdRef.current = userId;
+      if (!userId) {
+        // Logged out
+        setItems([]);
+      } else {
+        // Logged in: load user's specific cart (new login will have null -> empty cart)
+        try {
+          const saved = localStorage.getItem(`skyline_merch_cart_${userId}`);
+          setItems(saved ? JSON.parse(saved) : []);
+        } catch {
+          setItems([]);
+        }
+      }
+    }
+  }, [userId]);
+
+  // Persist items for the active user / guest
   useEffect(() => {
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      localStorage.setItem(storageKey, JSON.stringify(items));
     } catch {
       // Ignore storage errors in restricted contexts
     }
-  }, [items]);
+  }, [items, storageKey]);
 
   function addToCart({ product, variant, quantity = 1 }) {
     setItems(prev => {
