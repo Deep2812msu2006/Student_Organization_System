@@ -1,0 +1,252 @@
+/* @edit:CHECKIN_UI @edit:PAYMENT_UI — Staff screen styles.
+ * Uses shared design tokens from tokens.css.
+ * Responsive layout for mobile check-in devices.
+ */
+
+/* ─── Check-in form ────────────────────────────────────────────────────────── */
+
+.checkin-form {
+  max-width: 600px;
+  margin-top: 1.5rem;
+}
+
+.checkin-form .field {
+  margin-bottom: 1.2rem;
+}
+
+.checkin-form input,
+.checkin-form select {
+  font: inherit;
+  padding: 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  width: 100%;
+}
+
+.checkin-form input:focus,
+.checkin-form select:focus {
+  border-color: var(--color-focus);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(8, 103, 139, 0.15);
+}
+
+.checkin-form input::placeholder {
+  color: var(--color-muted);
+  opacity: 0.7;
+}
+
+.checkin-form code {
+  background: var(--color-subtle);
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+}
+
+/* ─── Check-in result feedback ─────────────────────────────────────────────── */
+
+.checkin-result {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  text-align: center;
+  animation: fadeSlideIn 0.3s ease-out;
+}
+
+.checkin-success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border: 2px solid var(--color-success);
+}
+
+.checkin-denied {
+  background: #fff0f0;
+  color: #9b2c2c;
+  border: 2px solid #feb2b2;
+}
+
+.checkin-result-icon {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  line-height: 1;
+}
+
+.checkin-result strong {
+  display: block;
+  font-size: 1.2rem;
+  margin-bottom: 0.3rem;
+}
+
+.checkin-result p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Attendance panel ─────────────────────────────────────────────────────── */
+
+.attendance-panel {
+  margin-top: 2rem;
+}
+
+.attendance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.attendance-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.attendance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.attendance-stat {
+  text-align: center;
+  padding: 1rem;
+  background: var(--color-subtle);
+  border-radius: 0.6rem;
+}
+
+.attendance-number {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-brand);
+}
+
+.attendance-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+/* ─── Pending registrations list ───────────────────────────────────────────── */
+
+.pending-list {
+  margin-top: 2rem;
+}
+
+.pending-list h2 {
+  margin-bottom: 1rem;
+}
+
+.pending-list .ticket-card h3 {
+  margin-top: 0.5rem;
+  font-size: 1.1rem;
+}
+
+/* ─── Payment confirmation dialog ──────────────────────────────────────────── */
+
+.payment-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.payment-dialog {
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.payment-dialog h2 {
+  margin-top: 0;
+  font-size: 1.3rem;
+}
+
+.payment-dialog .field {
+  margin-bottom: 1rem;
+}
+
+.payment-dialog input,
+.payment-dialog select,
+.payment-dialog textarea {
+  font: inherit;
+  padding: 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  width: 100%;
+}
+
+.payment-dialog textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.payment-dialog-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ─── Status pill enhancements ─────────────────────────────────────────────── */
+
+.status-pill {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 1rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+/* ─── Responsive ───────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .attendance-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .payment-dialog-actions {
+    flex-direction: column;
+  }
+
+  .checkin-form {
+    max-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkin-result,
+  .payment-dialog-overlay {
+    animation: none;
+  }
+}

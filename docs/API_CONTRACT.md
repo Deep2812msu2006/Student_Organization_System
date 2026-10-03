@@ -47,19 +47,24 @@ Authentication proposal: opaque HttpOnly cookie session stored in PostgreSQL. Se
 - POST `/orders`: authenticated `{items:[{variantId,quantity}]}` plus idempotency key → server-priced order `{id,status,totalMinor,currency,items}`. Positive bounded quantities; lock variants in deterministic order.
 - GET `/orders/me`: own paginated orders.
 
-### Dharmik: check-in
+### Dharmik: check-in (implemented)
 
-- POST `/checkins`: event-authorized staff `{eventId,ticketToken}` → `{registrationId,checkedInAt}`. Invalid/unpaid/cancelled/wrong-event ticket rejected. Repeat → 409. Tokens must be unpredictable; store hashes and avoid raw-token logs.
+- POST `/checkins`: organizer-role staff `{eventId,ticketToken}` → 200 `{data:{registrationId,eventId,status,checkedInAt,checkedInBy}}`. Requires CSRF. Token is SHA-256 hashed and matched against `registrations.token_hash`. Atomic conditional UPDATE ensures one-time admission. Invalid/unconfirmed/cancelled/wrong-event/already-used → 409 `CHECKIN_DENIED`. Staff identity and check-in time are recorded.
+- GET `/events/:eventId/attendance`: organizer-role → `{data:{eventId,eventTitle,capacity,totalRegistrations,confirmed,pending,cancelled,checkedIn}}`. Database-backed counts.
+- GET `/events/:eventId/pending-registrations`: organizer-role → `{data:[{id,eventId,userId,userName,userEmail,priceMinor,currency,status,createdAt}]}`. Lists pending-only registrations.
 
-### Dharmik: expenses/finance/payments
+### Dharmik: manual payment confirmation (implemented)
+
+- POST `/payments/manual`: organizer-role treasurer `{registrationId,amountMinor,currency,method,externalReference?,notes?}` + `Idempotency-Key` header → 201 `{data:{payment,registration},replayed:false}` or 200 for replay. Validates amount/currency against registration snapshot. Rejects cancelled registrations (409 `REGISTRATION_CANCELLED`). Zero-price path: amountMinor must be 0, method set to `zero_price`. Inserts durable `payment_records` evidence and confirms registration pending→confirmed in one transaction. Idempotent: duplicate keys return existing result. Does not simulate a payment gateway or collect card details.
+
+### Dharmik: expenses/finance (planned — not yet implemented)
 
 - POST `/expenses`: authenticated allowed requester; multipart `amountMinor,currency,purpose,receipt` → pending expense. Private file storage with type/size restrictions and generated names.
 - GET `/expenses`: own records; treasurer/authorized organizer may see the permitted full set.
 - GET `/expenses/:id/receipt`: same record permission; authorized download, never public static uploads.
 - PATCH `/expenses/:id/decision`: treasurer `{decision: "approved" | "rejected", reason}`; no self-approval under proposed policy.
 - POST `/expenses/:id/reimburse`: treasurer, idempotency key → approved-to-paid transition once with audit record.
-- GET `/finance/summary`: treasurer/authorized organizer, validated optional from/to dates → `{currency,receivedMinor,paidMinor,cashBalanceMinor,outstandingDuesMinor,pendingReimbursementsMinor,totalsBySource}`. Approval does not itself reduce cash. Cash balance is not profit.
-- POST `/payments/manual`: only if approved as demo mode; treasurer/authorized organizer `{purpose,referenceId,amountMinor,currency,method}` plus idempotency key. Server validates amount and links. Never let a student set paid=true. Manual recording is not online payment processing.
+- GET `/finance/summary`: treasurer/authorized organizer, validated optional from/to dates → aggregated financial summary.
 
 ### Dharmik: communications/tasks
 
