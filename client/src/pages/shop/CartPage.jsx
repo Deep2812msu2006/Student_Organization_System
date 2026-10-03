@@ -13,6 +13,27 @@ export default function CartPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [stockConflict, setStockConflict] = useState(null);
+  const [memberBenefits, setMemberBenefits] = useState(null);
+
+  useEffect(() => {
+    if (!user) {
+      setMemberBenefits(null);
+      return;
+    }
+    api('/members/me')
+      .then(res => {
+        if (res.data?.benefits?.eligible && res.data.membershipStatus === 'active') {
+          setMemberBenefits(res.data.benefits);
+        } else {
+          setMemberBenefits(null);
+        }
+      })
+      .catch(() => setMemberBenefits(null));
+  }, [user]);
+
+  const discountPct = memberBenefits?.merchDiscountPct || 0;
+  const discountMinor = discountPct > 0 ? Math.floor((totalEstimatedMinor * discountPct) / 100) : 0;
+  const finalTotalMinor = totalEstimatedMinor - discountMinor;
 
   // Idempotency key preserved across retries of the identical cart; reset when cart items change
   const idempotencyKeyRef = useRef(null);
@@ -188,9 +209,16 @@ export default function CartPage() {
             <span>{money(totalEstimatedMinor, currency)}</span>
           </div>
 
+          {discountPct > 0 && (
+            <div className="summary-row" style={{ color: 'var(--color-primary-dark, #163c34)', fontWeight: 600 }}>
+              <span>Member Discount ({discountPct}%):</span>
+              <span>−{money(discountMinor, currency)}</span>
+            </div>
+          )}
+
           <div className="summary-row total">
             <span>Estimated Total:</span>
-            <span>{money(totalEstimatedMinor, currency)}</span>
+            <span>{money(finalTotalMinor, currency)}</span>
           </div>
 
           <div className="story-note" style={{ fontSize: '0.85rem' }}>

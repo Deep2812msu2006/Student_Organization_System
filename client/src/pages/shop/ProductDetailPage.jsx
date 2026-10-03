@@ -3,17 +3,36 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api.js';
 import { money } from '../../utils/format.js';
 import { useCart } from '../../context/CartContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [product, setProduct] = useState(null);
   const [selectedVariantId, setSelectedVariantId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [addedNotice, setAddedNotice] = useState(false);
+  const [memberBenefits, setMemberBenefits] = useState(null);
   const { addToCart, items } = useCart();
+
+  useEffect(() => {
+    if (!user) {
+      setMemberBenefits(null);
+      return;
+    }
+    api('/members/me')
+      .then(res => {
+        if (res.data?.benefits?.eligible && res.data.membershipStatus === 'active') {
+          setMemberBenefits(res.data.benefits);
+        } else {
+          setMemberBenefits(null);
+        }
+      })
+      .catch(() => setMemberBenefits(null));
+  }, [user]);
 
   useEffect(() => {
     let ignore = false;
@@ -97,9 +116,37 @@ export default function ProductDetailPage() {
         <div className="product-detail-info">
           <span className="product-card-category">{product.category}</span>
           <h1>{product.name}</h1>
-          <p className="product-detail-price">
-            {selectedVariant ? money(selectedVariant.priceMinor, selectedVariant.currency) : '—'}
-          </p>
+          {selectedVariant && (
+            <div style={{ marginBlock: 'var(--space-2)' }}>
+              {memberBenefits?.merchDiscountPct > 0 ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                    <span className="product-detail-price" style={{ margin: 0, color: 'var(--color-primary-dark, #163c34)' }}>
+                      {money(Math.floor(selectedVariant.priceMinor * (100 - memberBenefits.merchDiscountPct) / 100), selectedVariant.currency)}
+                    </span>
+                    <span className="muted" style={{ textDecoration: 'line-through', fontSize: '1.2rem' }}>
+                      {money(selectedVariant.priceMinor, selectedVariant.currency)}
+                    </span>
+                    <span className="status-badge paid" style={{ fontSize: '0.8rem', padding: '3px 8px', borderRadius: '4px' }}>
+                      {memberBenefits.merchDiscountPct}% MEMBER DISCOUNT
+                    </span>
+                  </div>
+                  <p className="muted" style={{ fontSize: '0.84rem', margin: '4px 0 0', color: 'var(--color-primary-dark, #163c34)' }}>
+                    ✨ Applied with your active membership benefits!
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="product-detail-price" style={{ margin: 0 }}>
+                    {money(selectedVariant.priceMinor, selectedVariant.currency)}
+                  </p>
+                  <p className="muted" style={{ fontSize: '0.84rem', margin: '4px 0 0' }}>
+                    Active Skyline members qualify for a 5% discount at checkout.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           <p>{product.description || 'Official club merchandise item.'}</p>
 
