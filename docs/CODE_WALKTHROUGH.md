@@ -1,5 +1,9 @@
 # Foundation walkthrough
 
+## Current event request flow
+
+React event screens use services/api.js (session cookie, CSRF header, idempotency header) → event.routes.js (validation and permissions) → event.service.js (member price, same-event lock, capacity and replay policy) → Deep's event.model.js → PostgreSQL. Organizer PATCH holds the same event lock as registrations. My Tickets uses a safe summary query and an internal owner-scoped credential query; it never exposes stored hashes. See [EVENTS_HANDOFF.md](EVENTS_HANDOFF.md) for exact token and payment boundaries.
+
 > This describes the original foundation. Authentication and membership now work; see [the current walkthrough and handoff](AUTH_MEMBERSHIP_HANDOFF.md). Business requests now pass through PostgreSQL sessions, CSRF verification, strict validation and role checks before the service/model layer.
 
 ## What happens when the page loads?

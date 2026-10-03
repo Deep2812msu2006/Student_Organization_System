@@ -1,5 +1,7 @@
 # Student Organization System
 
+**Step 4 is implemented:** public events, organizer create/edit, capacity-safe pending reservations and owner-only tickets. See [EVENTS_HANDOFF.md](docs/EVENTS_HANDOFF.md) for setup (including TICKET_SECRET), current API/token contract, verification and remaining payment/check-in work. This supersedes the older planned-events notes below.
+
 React + Vite + Express + PostgreSQL for the Skyline Student Association hackathon project. English-only. **Authentication and membership are now implemented.** See [the current handoff](docs/AUTH_MEMBERSHIP_HANDOFF.md) for setup, synthetic demo logins, API changes and verification.
 
 ## What works
