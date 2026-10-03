@@ -37,6 +37,7 @@ export default function ShopPage() {
     { label: 'Apparel', value: 'apparel' },
     { label: 'Accessories', value: 'accessories' },
     { label: 'Collectibles', value: 'collectibles' },
+    { label: 'Exclusive', value: 'exclusive' },
   ];
 
   return (
