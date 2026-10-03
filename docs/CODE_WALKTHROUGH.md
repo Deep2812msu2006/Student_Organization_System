@@ -10,6 +10,10 @@ Staff check-in: CheckInPage.jsx → api('/checkins') → checkin.routes.js (auth
 
 Manual payment: PaymentPage.jsx → api('/payments/manual') → checkin.routes.js → payment.service.js → validates registration status + amount/currency → transaction(lockEvent + insertPaymentRecord + confirmRegistration) → returns payment evidence + confirmed registration. Zero-price path uses method='zero_price'. See [CHECKIN_PAYMENT_HANDOFF.md](CHECKIN_PAYMENT_HANDOFF.md) for full contract.
 
+## Merchandise and order request flow
+
+React merchandise catalog & cart screens use `CartContext.jsx` for local cart state → `ShopPage.jsx` and `ProductDetailPage.jsx` display database-backed items, sizes, prices, and stock availability → `CartPage.jsx` reviews order items and submits `POST /api/v1/orders` with `Idempotency-Key` and CSRF token → `merchandise.routes.js` validates structure with Zod → `merchandise.service.js` acquires advisory lock on idempotency key, locks requested variants in deterministic UUID ASC order (`@rule:VARIANT_LOCK_ORDER`), checks stock levels, deducts inventory atomically (`@rule:STOCK_DEDUCT_ON_ORDER`), and writes order + item snapshots → `merchandise.model.js` → PostgreSQL. Customers view orders via `OrdersPage.jsx` / `OrderDetailPage.jsx` (`GET /api/v1/orders/me` and `GET /api/v1/orders/:id`, owner-restricted). Cancellation via `POST /api/v1/orders/:id/cancel` restores variant inventory inside the transaction exactly once (`@rule:STOCK_RESTORE_ON_CANCEL`). Orders begin in `pending` status awaiting manual payment confirmation by staff. See [MERCHANDISE_UI_HANDOFF.md](MERCHANDISE_UI_HANDOFF.md).
+
 > This describes the original foundation. Authentication and membership now work; see [the current walkthrough and handoff](AUTH_MEMBERSHIP_HANDOFF.md). Business requests now pass through PostgreSQL sessions, CSRF verification, strict validation and role checks before the service/model layer.
 
 ## What happens when the page loads?

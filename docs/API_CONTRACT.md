@@ -41,11 +41,14 @@ Authentication proposal: opaque HttpOnly cookie session stored in PostgreSQL. Se
 - POST `/events/:id/registrations`: authenticated, idempotency key; server selects price and capacity treatment → `{id,eventId,status,priceMinor,currency}`. Decide manual vs asynchronous payment allocation policy before implementation.
 - GET `/tickets/me`: own eligible registrations with display/check-in token; do not list another person's ticket token.
 
-### Om: merchandise
+### Om: merchandise (implemented)
 
-- GET `/products`: published products and variants `{id,name,variants:[{id,size,priceMinor,stockAvailable}],currency}`.
-- POST `/orders`: authenticated `{items:[{variantId,quantity}]}` plus idempotency key → server-priced order `{id,status,totalMinor,currency,items}`. Positive bounded quantities; lock variants in deterministic order.
-- GET `/orders/me`: own paginated orders.
+- GET `/products`: public published products and variants `{data:[{id,name,description,category,variants:[{id,name,sku,priceMinor,currency,stockQuantity,inStock}]}]}` with optional `category` filter and pagination.
+- GET `/products/:id`: public product detail with variants and real-time inventory counts.
+- POST `/orders`: authenticated customer `{items:[{variantId,quantity}]}` with `Idempotency-Key` header and CSRF token → 201 `{data:{id,status:'pending',totalMinor,currency,items:[{variantId,productName,variantName,unitPriceMinor,quantity,totalMinor}]}}` or 200 replay on identical request. Rejects client-supplied prices, totals or status. Deterministically locks variants (UUID ASC) and decrements stock atomically inside one transaction (@rule:VARIANT_LOCK_ORDER, @rule:STOCK_DEDUCT_ON_ORDER).
+- GET `/orders/me`: authenticated customer paginated order history with item summaries.
+- GET `/orders/:id`: authenticated customer order detail restricted to the owner (404/403 for non-owners).
+- POST `/orders/:id/cancel`: authenticated customer order cancellation `{reason?}`; verifies ownership, transitions status to `cancelled` and restores variant stock exactly once inside the transaction (@rule:STOCK_RESTORE_ON_CANCEL). Only `pending` and `paid` orders may be cancelled.
 
 ### Dharmik: check-in (implemented)
 
