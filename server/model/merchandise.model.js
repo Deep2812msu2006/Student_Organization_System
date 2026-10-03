@@ -495,8 +495,14 @@ export async function insertOrderItem(client, {
 /**
  * Cancel an order atomically and restore variant stock exactly once.
  *
- * @rule:STOCK_RESTORE_ON_CANCEL — Only orders in 'pending' or 'paid' status can be cancelled.
- * If already cancelled or fulfilled, returns null and restores no stock.
+ * @rule:PENDING_ONLY_CANCEL — Only orders in 'pending' status can be cancelled.
+ *   Paid orders are rejected until an audited refund workflow exists.
+ *   Cancelled or fulfilled orders return null and restore no stock.
+ *
+ * @rule:ORDER_LOCK_ORDER — Locks the order row first (SELECT ... FOR UPDATE) to ensure
+ *   deterministic lock ordering with payment confirmation and prevent race conditions.
+ *
+ * @rule:STOCK_RESTORE_ON_CANCEL — Restores variant stock for each item inside the same transaction.
  *
  * @param {import('pg').PoolClient} client
  * @param {{
@@ -513,7 +519,21 @@ export async function cancelOrder(client, {
   reason = '',
   at = new Date().toISOString(),
 }) {
-  // 1. Conditional status update
+  // 1. Lock the order row first to ensure deterministic lock ordering with payment confirmation
+  const { rows: locked } = await client.query(
+    `SELECT id, status FROM orders WHERE id = $1 FOR UPDATE`,
+    [orderId]
+  );
+  if (locked.length === 0) {
+    return null; // Not found
+  }
+
+  // 2. Reject if not pending (rejects 'paid', 'cancelled', 'fulfilled')
+  if (locked[0].status !== 'pending') {
+    return null;
+  }
+
+  // 3. Conditional status update (pending -> cancelled)
   const { rows: orderRows } = await client.query(
     `UPDATE orders
      SET
@@ -523,7 +543,7 @@ export async function cancelOrder(client, {
        cancellation_reason = $3,
        updated_at = now()
      WHERE id = $4
-       AND status IN ('pending', 'paid')
+       AND status = 'pending'
      RETURNING
        id,
        user_id AS "userId",
@@ -536,10 +556,10 @@ export async function cancelOrder(client, {
   );
 
   if (orderRows.length === 0) {
-    return null; // Not found, or already cancelled / fulfilled
+    return null; // Concurrently altered
   }
 
-  // 2. Fetch all items in the cancelled order
+  // 4. Fetch all items in the cancelled order
   const { rows: itemRows } = await client.query(
     `SELECT variant_id AS "variantId", quantity
      FROM order_items
@@ -548,7 +568,7 @@ export async function cancelOrder(client, {
     [orderId]
   );
 
-  // 3. Restore stock for each item
+  // 5. Restore stock for each item
   for (const item of itemRows) {
     await client.query(
       `UPDATE product_variants
@@ -663,4 +683,116 @@ export async function listUserOrders(db, userId, { page = 1, pageSize = 20 } = {
     page: safePage,
     pageSize: safePageSize,
   };
+}
+
+/**
+ * Lock an order row for payment confirmation.
+ * Enforces consistent lock ordering (@rule:ORDER_LOCK_ORDER) to prevent deadlocks with cancellation.
+ *
+ * @param {import('pg').PoolClient} client
+ * @param {string} orderId
+ * @returns {Promise<object|null>}
+ */
+export async function lockOrderForPayment(client, orderId) {
+  const { rows } = await client.query(
+    `SELECT
+       id,
+       user_id AS "userId",
+       status,
+       total_minor AS "totalMinor",
+       currency,
+       paid_at AS "paidAt",
+       cancelled_at AS "cancelledAt",
+       fulfilled_at AS "fulfilledAt"
+     FROM orders
+     WHERE id = $1
+     FOR UPDATE`,
+    [orderId]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Conditionally transition an order from 'pending' to 'paid' atomically.
+ * Returns null if the order is not in 'pending' status (already paid, cancelled, or fulfilled).
+ *
+ * @rule:PAYMENT_ONCE — An order can only transition to 'paid' from 'pending'.
+ *
+ * @param {import('pg').PoolClient} client - Inside caller's transaction
+ * @param {{ orderId: string, paidAt?: string }} params
+ * @returns {Promise<object|null>} Updated order record or null if no eligible row
+ */
+export async function confirmOrderPayment(client, { orderId, paidAt = new Date().toISOString() }) {
+  const { rows } = await client.query(
+    `UPDATE orders
+     SET
+       status = 'paid',
+       paid_at = $1,
+       updated_at = now()
+     WHERE id = $2 AND status = 'pending'
+     RETURNING
+       id,
+       user_id AS "userId",
+       status,
+       total_minor AS "totalMinor",
+       currency,
+       paid_at AS "paidAt",
+       updated_at AS "updatedAt"`,
+    [paidAt, orderId]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * List pending merchandise orders for treasurer confirmation screen.
+ *
+ * @param {import('pg').Pool|import('pg').PoolClient} db
+ * @param {{ page?: number, pageSize?: number }} [params]
+ * @returns {Promise<{ rows: Array<object>, total: number, page: number, pageSize: number }>}
+ */
+export async function listPendingOrders(db, { page = 1, pageSize = 20 } = {}) {
+  const safePage = Math.max(1, parseInt(page, 10) || 1);
+  const safePageSize = Math.min(50, Math.max(1, parseInt(pageSize, 10) || 20));
+  const offset = (safePage - 1) * safePageSize;
+
+  const countResult = await db.query(
+    `SELECT COUNT(*)::int AS total FROM orders WHERE status = 'pending'`
+  );
+  const total = countResult.rows[0]?.total ?? 0;
+
+  const { rows } = await db.query(
+    `SELECT
+       o.id,
+       o.user_id AS "userId",
+       u.name AS "userName",
+       u.email AS "userEmail",
+       o.status,
+       o.total_minor AS "totalMinor",
+       o.currency,
+       o.idempotency_key AS "idempotencyKey",
+       o.created_at AS "createdAt",
+       COALESCE(
+         json_agg(
+           json_build_object(
+             'id', oi.id,
+             'productName', oi.product_name_snapshot,
+             'variantName', oi.variant_name_snapshot,
+             'unitPriceMinor', oi.unit_price_minor_snapshot,
+             'quantity', oi.quantity,
+             'totalMinor', oi.total_minor
+           ) ORDER BY oi.created_at ASC
+         ) FILTER (WHERE oi.id IS NOT NULL),
+         '[]'::json
+       ) AS items
+     FROM orders o
+     JOIN users u ON u.id = o.user_id
+     LEFT JOIN order_items oi ON oi.order_id = o.id
+     WHERE o.status = 'pending'
+     GROUP BY o.id, u.id
+     ORDER BY o.created_at ASC
+     LIMIT $1 OFFSET $2`,
+    [safePageSize, offset]
+  );
+
+  return { rows, total, page: safePage, pageSize: safePageSize };
 }

@@ -27,16 +27,12 @@ export function checkinRouter(pool, config) {
   const auth = requireUser(pool);
   const staff = requireRole('organizer');
 
-  // All routes require authentication, CSRF, and organizer role
-  router.use(requireCsrf);
-  router.use(auth);
-  router.use(staff);
   router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
   // ─── Check-in ───────────────────────────────────────────────────────────────
   // POST /api/v1/checkins
   // @flow:CHECKIN — Staff submits eventId + admission code
-  router.post('/checkins', validate(checkinSchema), async (req, res) => {
+  router.post('/checkins', requireCsrf, auth, staff, validate(checkinSchema), async (req, res) => {
     const { eventId, ticketToken } = req.validated;
     const result = await checkinService.checkIn(pool, eventId, ticketToken, req.user.id);
     res.status(200).json({ data: result });
@@ -44,7 +40,7 @@ export function checkinRouter(pool, config) {
 
   // GET /api/v1/events/:eventId/attendance
   // Database-backed attendance totals for staff dashboard
-  router.get('/events/:eventId/attendance', async (req, res) => {
+  router.get('/events/:eventId/attendance', auth, staff, async (req, res) => {
     const eventId = req.params.eventId;
     if (!idSchema.safeParse(eventId).success) {
       throw new HttpError(400, 'INVALID_ID', 'Invalid event ID.');
@@ -56,7 +52,7 @@ export function checkinRouter(pool, config) {
   // ─── Manual payment confirmation ───────────────────────────────────────────
   // POST /api/v1/payments/manual
   // @flow:PAYMENT_CONFIRMATION — Treasurer records out-of-band payment
-  router.post('/payments/manual', validate(paymentSchema), async (req, res) => {
+  router.post('/payments/manual', requireCsrf, auth, staff, validate(paymentSchema), async (req, res) => {
     const keyResult = paymentIdempotencySchema.safeParse(req.get('Idempotency-Key'));
     if (!keyResult.success) {
       throw new HttpError(400, 'INVALID_IDEMPOTENCY_KEY',
@@ -75,7 +71,7 @@ export function checkinRouter(pool, config) {
 
   // GET /api/v1/events/:eventId/pending-registrations
   // List pending registrations for treasurer confirmation screen
-  router.get('/events/:eventId/pending-registrations', async (req, res) => {
+  router.get('/events/:eventId/pending-registrations', auth, staff, async (req, res) => {
     const eventId = req.params.eventId;
     if (!idSchema.safeParse(eventId).success) {
       throw new HttpError(400, 'INVALID_ID', 'Invalid event ID.');
