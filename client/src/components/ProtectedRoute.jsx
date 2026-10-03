@@ -6,6 +6,7 @@ export default function ProtectedRoute({role}) {
   if(loading) return <div className="container account-page" role="status">Checking your session…</div>;
   if(error) return <div className="container account-page"><h1>Connection needs attention</h1><p role="alert">{error}</p><button className="button" onClick={refresh}>Try again</button></div>;
   if(!user) return <Navigate to="/login" replace/>;
-  if(role && !user.roles.includes(role)) return <div className="container account-page"><h1>Access restricted</h1><p>This page is available to organizers.</p></div>;
+  const allowed = role ? (Array.isArray(role) ? role : [role]).some(r => user.roles?.includes(r)) : true;
+  if(!allowed) return <div className="container account-page"><h1>Access restricted</h1><p>Your account does not have the required staff role.</p></div>;
   return <Outlet/>;
 }

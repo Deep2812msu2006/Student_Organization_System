@@ -11,7 +11,12 @@ export default function Navbar() {
   const {user,logout}=useAuth();
   const {itemCount}=useCart();
   const toggle=useRef(null);const navigate=useNavigate();
-  const links=user?[...navigation.member.filter(x=>!x.planned),...(user.roles.includes('organizer')?navigation.staff.filter(x=>!x.planned):[])]:navigation.public;
+  const staffLinks = user ? navigation.staff.filter(x => {
+    if (x.planned) return false;
+    if (x.href === '/staff/payments') return user.roles.includes('organizer') || user.roles.includes('treasurer');
+    return user.roles.includes('organizer');
+  }) : [];
+  const links = user ? [...navigation.member.filter(x => !x.planned), ...staffLinks] : navigation.public;
   async function signOut(){setBusy(true);setError('');try{await logout();setOpen(false);navigate('/login');}catch(e){setError(e.message);}finally{setBusy(false);}}
   function handleKeyDown(event){if(event.key==='Escape'&&open){setOpen(false);toggle.current?.focus();}}
   return <header className="navbar" onKeyDown={handleKeyDown}><div className="container navbar-inner">
