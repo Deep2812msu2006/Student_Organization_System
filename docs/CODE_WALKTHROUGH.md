@@ -94,7 +94,10 @@ server/tests/auth.model.test.js and server/tests/member.model.test.js test the S
 - `@flow:MERCHANDISE_PAYMENT_LIST` — `server/routes/checkin.routes.js`, `server/services/payment.service.js` (paginated pending orders for authorized staff).
 - `@rule:ORDER_LOCK_ORDER` — `server/model/payment.model.js`, `server/model/merchandise.model.js` (consistent FOR UPDATE locking order to prevent deadlocks).
 - `@rule:PENDING_ONLY_CANCEL` — `server/model/merchandise.model.js`, `client/src/pages/shop/OrderDetailPage.jsx` (cancellation allowed only for pending orders).
-- `@rule:PAYMENT_TARGET_MUTEX` — `database/migrations/008_merchandise_payments.sql` (exactly one target: registration_id OR order_id).
+- `@rule:PAYMENT_TARGET_MUTEX` — `database/migrations/009_dues_and_expenses.sql` (exactly one target: registration_id OR order_id OR dues_obligation_id).
+- `@rule:DUES_PAYMENT_ONCE` — `database/migrations/009_dues_and_expenses.sql` (unique index on dues_obligation_id in payment_records), `server/model/payment.model.js`.
+- `@rule:EXPENSE_LIFECYCLE` — `database/migrations/009_dues_and_expenses.sql` (expenses table with check constraints), `server/model/expense.model.js`.
+- `@flow:FINANCIAL_SUMMARY` — `server/model/finance.model.js` (aggregate parameterized summary queries per currency).
 - `@edit:CHECKIN_UI` — `client/src/pages/staff/CheckInPage.jsx`.
 - `@edit:PAYMENT_UI` — `client/src/pages/staff/PaymentPage.jsx`.
 - `@edit:MERCHANDISE_PAYMENT_UI` — `client/src/pages/staff/PaymentPage.jsx` (merchandise orders tab and manual payment confirmation modal).
@@ -114,7 +117,12 @@ server/tests/auth.model.test.js and server/tests/member.model.test.js test the S
 | Check-in once only | Conditional UPDATE: `checked_in_at IS NULL` + `status = 'confirmed'` | 005 migration, event.model.js |
 | Payment evidence durability | `payment_records` with UNIQUE `idempotency_key` | 006 migration |
 | Registration confirmation atomic | Payment record + status change in one transaction | payment.service.js |
-| Payment target mutex | CHECK `payment_records_target_check` (registration_id OR order_id) | 008 migration |
+| Payment target mutex | CHECK `payment_records_target_check` (exactly one of registration_id, order_id, dues_obligation_id) | 009 migration |
 | Unique payment per order | UNIQUE INDEX on `order_id` in `payment_records` | 008 migration |
+| Unique payment per dues obligation | UNIQUE INDEX on `dues_obligation_id` in `payment_records` | 009 migration |
+| Positive expense amounts | CHECK `amount_minor > 0` | 009 migration |
+| Expense lifecycle state machine | CHECK `expenses_decision_check` enforcing actor and timestamp integrity | 009 migration |
+| Unique expense reimbursement | UNIQUE `reimbursement_idempotency_key` on `expenses` | 009 migration |
 | Pending-only order cancel | Conditional UPDATE: `status = 'cancelled' WHERE status = 'pending'` | merchandise.model.js |
+
 
