@@ -5,6 +5,7 @@ const fixtures = [
   ['10000000-0000-0000-0000-000000000001', 'Dev Member', 'dev-member@example.local', 'Dev$Member1!', ['member']],
   ['10000000-0000-0000-0000-000000000002', 'Dev Organizer', 'dev-organizer@example.local', 'Dev$Org1!', ['member', 'organizer']],
   ['10000000-0000-0000-0000-000000000003', 'Dev Treasurer', 'dev-treasurer@example.local', 'Dev$Treasurer1!', ['member', 'treasurer']],
+  ['10000000-0000-0000-0000-000000000004', 'Skyline Treasurer', 'treasurer@example.local', 'Treasurer$Pass1!', ['member', 'treasurer']],
 ];
 const oldPlaceholder = '$2b$12$XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
 

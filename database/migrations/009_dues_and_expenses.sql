@@ -1,18 +1,8 @@
 -- Migration: 009_dues_and_expenses.sql
--- Membership dues payment evidence, volunteer expense workflow, and financial ledger support.
---
--- Deep owns this migration; Dharmik integrates supporting APIs and staff screens.
---
--- @rule:PAYMENT_TARGET_MUTEX — Exactly ONE target entity is permitted per payment_records row:
---   either registration_id (event ticket) OR order_id (merchandise order) OR dues_obligation_id (membership dues).
---
--- @rule:DUES_PAYMENT_ONCE — A membership dues obligation can be confirmed as paid at most once.
---   Enforced via UNIQUE index on payment_records(dues_obligation_id) and atomic status update.
---
--- @rule:EXPENSE_TRANSITIONS — Valid state transitions for expenses:
---   submitted -> approved | rejected
---   approved  -> reimbursed
---   Duplicate reimbursement is prevented via UNIQUE constraint on reimbursement_idempotency_key.
+-- Membership dues payment evidence, volunteer expense workflow, and financial ledger.
+-- @rule:PAYMENT_TARGET_MUTEX — Exactly one target entity permitted per payment row.
+-- @rule:DUES_PAYMENT_ONCE — Dues obligation can be confirmed at most once.
+-- @rule:EXPENSE_TRANSITIONS — submitted -> approved|rejected -> reimbursed.
 
 -- 1. Extend payment_records to support dues obligations
 ALTER TABLE payment_records
@@ -31,17 +21,16 @@ ALTER TABLE payment_records
     (registration_id IS NULL AND order_id IS NULL AND dues_obligation_id IS NOT NULL)
   );
 
--- 4. Index for dues payment lookups
+-- 4. Indexes for dues payment lookups and uniqueness
 CREATE INDEX payment_records_dues_idx
   ON payment_records (dues_obligation_id)
   WHERE dues_obligation_id IS NOT NULL;
 
--- 5. Enforce uniqueness: at most one payment record per dues obligation
 CREATE UNIQUE INDEX payment_records_unique_dues_obligation_idx
   ON payment_records (dues_obligation_id)
   WHERE dues_obligation_id IS NOT NULL;
 
--- 6. Create volunteer expenses table
+-- ─── Volunteer expenses table ─────────────────────────────────────────────────
 CREATE TABLE expenses (
   id                            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   requester_id                  UUID        NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
@@ -62,13 +51,13 @@ CREATE TABLE expenses (
   created_at                    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at                    TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  -- Constraint: Approved/Rejected states must record deciding actor and timestamp
+  -- Approved/Rejected states must record deciding actor and timestamp
   CHECK (
     status NOT IN ('approved', 'rejected') OR
     (decided_at IS NOT NULL AND decided_by IS NOT NULL)
   ),
 
-  -- Constraint: Reimbursed state must record decision, reimbursement actor, timestamp, and idempotency key
+  -- Reimbursed state must record decision, reimbursement actor, timestamp, and idempotency key
   CHECK (
     status != 'reimbursed' OR
     (decided_at IS NOT NULL AND decided_by IS NOT NULL AND reimbursed_at IS NOT NULL AND reimbursed_by IS NOT NULL AND reimbursement_idempotency_key IS NOT NULL)

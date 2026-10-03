@@ -1,23 +1,9 @@
 -- Migration: 007_merchandise_and_orders.sql
 -- Merchandise catalog, variant stock management, orders and order items.
---
--- @rule:VARIANT_LOCK_ORDER — When ordering multiple variants in a single transaction,
---   variants MUST be locked in deterministic UUID ascending order (ORDER BY id ASC FOR UPDATE)
---   to prevent PostgreSQL deadlocks under high concurrency.
---
--- @rule:STOCK_DEDUCT_ON_ORDER — Variant stock is checked and decremented inside
---   the order transaction. If any variant has insufficient stock (stock_quantity < quantity),
---   the transaction rolls back entirely, preventing overselling or partial orders.
---   The database constraint CHECK (stock_quantity >= 0) acts as an authoritative backstop.
---
--- @rule:ORDER_IDEMPOTENCY — Each order has a UNIQUE idempotency_key and an
---   idempotency_payload_hash. Retries with the identical payload return the existing
---   order (safe replay). Retries with a changed payload for the same key are rejected.
---
--- @rule:STOCK_RESTORE_ON_CANCEL — Order cancellation performs an atomic conditional
---   status transition (WHERE status IN ('pending', 'paid')) and restores variant stock
---   for each item inside the same transaction. Repeated cancellation calls affect zero
---   rows and cannot restore stock more than once.
+-- @rule:VARIANT_LOCK_ORDER — Lock variants in ascending UUID order to prevent deadlocks.
+-- @rule:STOCK_DEDUCT_ON_ORDER — Deduct stock atomically; non-negative check prevents overselling.
+-- @rule:ORDER_IDEMPOTENCY — Deduplicate orders with idempotency key and payload hash.
+-- @rule:STOCK_RESTORE_ON_CANCEL — Restores variant stock atomically upon cancellation.
 
 -- ─── Products table ───────────────────────────────────────────────────────────
 CREATE TABLE products (
@@ -36,7 +22,6 @@ CREATE INDEX products_published_idx
   WHERE is_published = true;
 
 -- ─── Product variants table ───────────────────────────────────────────────────
--- Each product can have multiple variants (e.g. sizes S, M, L, XL or colors).
 CREATE TABLE product_variants (
   id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id          UUID        NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -83,7 +68,6 @@ CREATE INDEX orders_idempotency_idx
   ON orders (idempotency_key);
 
 -- ─── Order items table ────────────────────────────────────────────────────────
--- Snapshots product name, variant name, and unit price at purchase time.
 CREATE TABLE order_items (
   id                        UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id                  UUID        NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
