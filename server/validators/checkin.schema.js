@@ -15,7 +15,7 @@ export const checkinSchema = wrap(Joi.object({
     'string.pattern.base': 'Invalid event ID.',
     'any.required': 'Invalid event ID.',
   }),
-  ticketToken: Joi.string().min(1).max(200).required().messages({
+  ticketToken: Joi.string().trim().min(1).max(200).required().messages({
     'string.empty': 'Admission code is required.',
     'string.min': 'Admission code is required.',
     'string.max': 'Admission code is too long.',
@@ -32,7 +32,7 @@ export const paymentSchema = wrap(Joi.object({
   amountMinor: Joi.number().integer().min(0).max(100000000).required(),
   currency: Joi.string().valid('INR', 'USD', 'EUR', 'GBP').required(),
   method: Joi.string().trim().min(1).max(50).required(),
-  externalReference: Joi.string().trim().min(1).max(200).optional(),
+  externalReference: Joi.string().trim().max(200).allow('', null).optional(),
   notes: Joi.string().trim().max(500).default('').allow(''),
 }).unknown(false));
 
@@ -48,7 +48,7 @@ export const merchandisePaymentSchema = wrap(Joi.object({
   amountMinor: Joi.number().integer().min(0).max(100000000).required(),
   currency: Joi.string().valid('INR', 'USD', 'EUR', 'GBP').required(),
   method: Joi.string().trim().min(1).max(50).required(),
-  externalReference: Joi.string().trim().min(1).max(200).optional(),
+  externalReference: Joi.string().trim().max(200).allow('', null).optional(),
   notes: Joi.string().trim().max(500).default('').allow(''),
 }).unknown(false));
 
