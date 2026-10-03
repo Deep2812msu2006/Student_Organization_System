@@ -69,6 +69,7 @@ test('Dues, Expenses, and Finance API: manual payments, expense lifecycle, recei
         await pool.query('DELETE FROM registrations WHERE user_id = ANY($1::uuid[])', [userIds]);
         await pool.query("DELETE FROM sessions WHERE sess->>'userId' = ANY($1::text[])", [userIds]);
         await pool.query('DELETE FROM user_roles WHERE user_id = ANY($1::uuid[])', [userIds]);
+        await pool.query('DELETE FROM receipt_uploads WHERE owner_id = ANY($1::uuid[])',[userIds]);
         await pool.query('DELETE FROM users WHERE id = ANY($1::uuid[])', [userIds]);
       }
       if (planIds.length > 0) {
@@ -134,8 +135,8 @@ test('Dues, Expenses, and Finance API: manual payments, expense lifecycle, recei
 
   // Create membership plan
   const planRes = await pool.query(
-    `INSERT INTO membership_plans (name, description, duration_months, dues_amount_minor, currency)
-     VALUES ($1, 'Standard student membership', 12, 5000, 'INR')
+    `INSERT INTO membership_plans (name, description, dues_amount_minor, currency)
+     VALUES ($1, 'Standard student membership', 5000, 'INR')
      RETURNING id`,
     [`${prefix} Annual Plan`]
   );
@@ -181,7 +182,7 @@ test('Dues, Expenses, and Finance API: manual payments, expense lifecycle, recei
     const { duesObligationId } = await seedMembership(memberA.id, 5000, 'INR');
 
     // Verify initial profile shows pending dues
-    const initProfile = await memberA.client('/member/me');
+    const initProfile = await memberA.client('/members/me');
     assert.equal(initProfile.status, 200);
     assert.equal(initProfile.data.membershipStatus, 'pending');
 
@@ -215,7 +216,7 @@ test('Dues, Expenses, and Finance API: manual payments, expense lifecycle, recei
     assert.equal(dbPayment.recordedBy, treasurer.id);
 
     // Verify member's own profile now evaluates to 'active'
-    const updatedProfile = await memberA.client('/member/me');
+    const updatedProfile = await memberA.client('/members/me');
     assert.equal(updatedProfile.data.membershipStatus, 'active');
   });
 
@@ -234,7 +235,7 @@ test('Dues, Expenses, and Finance API: manual payments, expense lifecycle, recei
 
     // First attempt -> 201
     const firstRes = await treasurer.client('/payments/dues/manual', 'POST', payload, { 'Idempotency-Key': key });
-    assert.equal(firstRes.status, 201);
+    assert.equal(firstRes.status, 201,JSON.stringify(firstRes));
 
     // Identical replay -> 200 replayed: true
     const replayRes = await treasurer.client('/payments/dues/manual', 'POST', payload, { 'Idempotency-Key': key });
@@ -319,7 +320,7 @@ test('Dues, Expenses, and Finance API: manual payments, expense lifecycle, recei
     assert.equal(badTypeRes.error?.code, 'INVALID_FILE_TYPE');
 
     // Valid PNG receipt upload via Base64 JSON
-    const pngBuffer = Buffer.from('fake-png-image-binary-data');
+    const pngBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
     const uploadRes = await memberA.client('/expenses/receipts', 'POST', {
       filename: 'club_supplies_receipt.png',
       contentType: 'image/png',
@@ -345,7 +346,7 @@ test('Dues, Expenses, and Finance API: manual payments, expense lifecycle, recei
       purpose: 'Poster printing for welcome booth',
       receiptKey: uploadedReceiptKey,
     });
-    assert.equal(submitRes.status, 201);
+    assert.equal(submitRes.status, 201,JSON.stringify(submitRes));
     assert.equal(submitRes.data.status, 'submitted');
     assert.equal(submitRes.data.amountMinor, 1500);
     createdExpenseId = submitRes.data.id;
@@ -381,12 +382,16 @@ test('Dues, Expenses, and Finance API: manual payments, expense lifecycle, recei
   });
 
   await t.test('Segregation of duties: users CANNOT approve or reject their own expense claims', async () => {
+    // Each uploader owns their receipt; reusing another user's receipt is forbidden.
+    const orgUpload=await organizer.client('/expenses/receipts','POST',{filename:'receipt.pdf',contentType:'application/pdf',dataBase64:Buffer.from('%PDF-1.4\n%%EOF').toString('base64')});
+    assert.equal(orgUpload.status,201);
+    receiptKeys.push(orgUpload.data.receiptKey);
     // Give Organizer user an expense claim
     const orgExpenseRes = await organizer.client('/expenses', 'POST', {
       amountMinor: 2500,
       currency: 'INR',
       purpose: 'Meeting snacks and tea',
-      receiptKey: uploadedReceiptKey,
+      receiptKey: orgUpload.data.receiptKey,
     });
     assert.equal(orgExpenseRes.status, 201);
     const orgExpenseId = orgExpenseRes.data.id;

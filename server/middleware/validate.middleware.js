@@ -1,7 +1,8 @@
+import Joi from 'joi';
 import { HttpError } from '../utils/httpError.js';
 export function validate(schema, source = 'body') {
   return (req, _res, next) => {
-    if (typeof schema?.validate === 'function') {
+    if (Joi.isSchema(schema)) {
       const { error, value } = schema.validate(req[source], { abortEarly: false, convert: true });
       if (error) {
         const fields = Object.fromEntries(

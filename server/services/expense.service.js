@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import { randomUUID } from 'node:crypto';
 import * as expenseModel from '../model/expense.model.js';
 import { transaction } from '../utils/transaction.js';
@@ -7,7 +8,7 @@ import { HttpError } from '../utils/httpError.js';
 import { scopedKey } from '../utils/ticketToken.js';
 
 // Private storage directory outside public assets
-const STORAGE_DIR = path.resolve(process.cwd(), 'server/storage/receipts');
+const STORAGE_DIR = fileURLToPath(new URL('../storage/receipts/', import.meta.url));
 
 // Ensure directory exists
 try {
@@ -64,7 +65,14 @@ export async function storeReceiptFile({ buffer, mimeType, originalFilename = 'r
     throw new HttpError(400, 'INVALID_FILE_TYPE', `File type "${normalizedMime}" is not supported. Allowed types: JPEG, PNG, WebP, PDF.`);
   }
 
-  const ext = MIME_TO_EXT[normalizedMime] || 'bin';
+  const signatures={
+ 'image/jpeg':buffer[0]===255&&buffer[1]===216&&buffer[2]===255,
+ 'image/png':buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])),
+ 'image/webp':buffer.toString('ascii',0,4)==='RIFF'&&buffer.toString('ascii',8,12)==='WEBP',
+ 'application/pdf':buffer.toString('ascii',0,5)==='%PDF-'
+ };
+ if(!signatures[normalizedMime])throw new HttpError(400,'INVALID_FILE_TYPE','File contents do not match the selected receipt type.');
+ const ext = MIME_TO_EXT[normalizedMime] || 'bin';
   const sanitizedOriginal = path.basename(originalFilename).replace(/[^a-zA-Z0-9_\-\.]/g, '_').slice(0, 100);
   const receiptKey = `receipt_${Date.now()}_${randomUUID().replace(/-/g, '')}.${ext}`;
   const targetPath = path.join(STORAGE_DIR, receiptKey);
@@ -122,6 +130,9 @@ export async function getReceiptFile(receiptKey) {
  * Submit a new volunteer expense claim.
  */
 export async function submitExpense(pool, { requesterId, amountMinor, currency, purpose, receiptKey }) {
+  // @rule:RECEIPT_OWNER — only the uploader can attach this private file.
+  const upload=await pool.query('SELECT 1 FROM receipt_uploads WHERE receipt_key=$1 AND owner_id=$2',[receiptKey,requesterId]);
+  if(!upload.rowCount)throw new HttpError(403,'FORBIDDEN','Upload your own receipt before submitting.');
   // Validate that receipt file exists
   await getReceiptFile(receiptKey);
 

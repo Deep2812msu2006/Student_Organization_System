@@ -1,4 +1,7 @@
+import {browseRouter} from './routes/browse.routes.js';
 import express from 'express';
+import {inventoryRouter} from './routes/inventory.routes.js';
+import {communityRouter} from './routes/community.routes.js';
 import { sessionMiddleware } from './config/session.js';
 import { memberRouter } from './routes/member.routes.js';
 import helmet from 'helmet';
@@ -27,7 +30,10 @@ export function createApp(database, config = {}) {
       memberRouter(database.pool, config),
       checkinRouter(database.pool, config),
       merchandiseRouter(database.pool, config),
-      financeRouter(database.pool, config)
+      financeRouter(database.pool, config),
+      communityRouter(database.pool),
+      inventoryRouter(database.pool),
+      browseRouter(database.pool,config)
     );
   }
   // Without configured DB/session secret, no business route is exposed.

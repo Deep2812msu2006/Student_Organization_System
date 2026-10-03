@@ -56,106 +56,36 @@ import { scopedKey } from '../utils/ticketToken.js';
  * @returns {Promise<{payment: object, registration: object, replayed: boolean}>}
  */
 export async function confirmPayment(pool, params, treasurerId) {
-  const {
-    registrationId,
-    amountMinor,
-    currency,
-    method,
-    externalReference = null,
-    notes = '',
-    idempotencyKey,
-  } = params;
-
-  // @flow:PAYMENT_CONFIRMATION step 1 — validate registration
-  const registration = await eventModel.findRegistrationById(pool, registrationId);
-  if (!registration) {
-    throw new HttpError(404, 'REGISTRATION_NOT_FOUND', 'Registration not found.');
+ const {registrationId,amountMinor,currency,method,externalReference=null,notes=''}=params;
+ const key=scopedKey(treasurerId,params.idempotencyKey);
+ // @flow:EVENT_PAYMENT — serialize retries, lock event then registration, persist evidence and state together.
+ return transaction(pool,async client=>{
+  await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[key]);
+  const registration=await eventModel.findRegistrationById(client,registrationId);
+  if(!registration)throw new HttpError(404,'REGISTRATION_NOT_FOUND','Registration not found.');
+  const effectiveMethod=registration.priceMinor===0?'zero_price':method;
+  const prior=await paymentModel.findPaymentByIdempotencyKey(client,key);
+  if(prior){
+   if(prior.registrationId!==registrationId||prior.amountMinor!==amountMinor||prior.currency!==currency||
+      prior.method!==effectiveMethod||(prior.externalReference||null)!==(externalReference||null)||(prior.notes||'')!==notes)
+    throw new HttpError(409,'IDEMPOTENCY_PAYLOAD_MISMATCH','This key was used with different payment details.');
+   const {tokenHash,idempotencyKey,...safe}=registration;
+   return {payment:safePayment(prior),registration:safe,replayed:true};
   }
-
-  // @flow:PAYMENT_CONFIRMATION step 2 — reject cancelled registrations
-  // @rule:PAYMENT_ONCE — never silently restore a cancelled registration
-  if (registration.status === 'cancelled') {
-    throw new HttpError(409, 'REGISTRATION_CANCELLED',
-      'This registration has been cancelled and cannot be confirmed. A new registration is required.');
-  }
-
-  // Already confirmed? Check if this is a replay by idempotency key.
-  if (registration.status === 'confirmed') {
-    const existing = await paymentModel.findPaymentByIdempotencyKey(pool, idempotencyKey);
-    if (existing && existing.registrationId === registrationId) {
-      // Idempotent replay — return the existing result
-      return { payment: existing, registration, replayed: true };
-    }
-    throw new HttpError(409, 'ALREADY_CONFIRMED',
-      'This registration is already confirmed. No duplicate payment is needed.');
-  }
-
-  // @flow:PAYMENT_CONFIRMATION step 4 — zero-price path
-  const isZeroPrice = registration.priceMinor === 0;
-  if (isZeroPrice) {
-    // Zero-price confirmation: don't require amount, just confirm with zero_price method
-    if (amountMinor !== 0) {
-      throw new HttpError(400, 'AMOUNT_MISMATCH',
-        'This is a zero-price registration. The confirmation amount must be 0.');
-    }
-  } else {
-    // @flow:PAYMENT_CONFIRMATION step 5 — validate amount/currency match
-    if (amountMinor !== registration.priceMinor) {
-      throw new HttpError(400, 'AMOUNT_MISMATCH',
-        `The payment amount does not match the registration price. Expected ${registration.priceMinor} ${registration.currency} minor units.`);
-    }
-  }
-
-  if (currency !== registration.currency) {
-    throw new HttpError(400, 'CURRENCY_MISMATCH',
-      `Currency mismatch. Registration uses ${registration.currency}.`);
-  }
-
-  // @flow:PAYMENT_CONFIRMATION step 3 — idempotency check before transaction
-  const existingPayment = await paymentModel.findPaymentByIdempotencyKey(pool, idempotencyKey);
-  if (existingPayment) {
-    if (existingPayment.registrationId !== registrationId) {
-      throw new HttpError(409, 'IDEMPOTENCY_CONFLICT',
-        'This idempotency key was already used for a different registration.');
-    }
-    // Replay: payment was already recorded for this registration with this key
-    const currentReg = await eventModel.findRegistrationById(pool, registrationId);
-    return { payment: existingPayment, registration: currentReg, replayed: true };
-  }
-
-  // @flow:PAYMENT_CONFIRMATION step 6 — atomic transaction
-  // @rule:PAYMENT_EVIDENCE — payment record and status change in one transaction
-  const result = await transaction(pool, async (client) => {
-    // 6a. Lock the event row to prevent concurrent capacity changes
-    const event = await eventModel.lockEventForBooking(client, registration.eventId);
-    if (!event) {
-      throw new HttpError(404, 'EVENT_NOT_FOUND', 'Event not found.');
-    }
-
-    // 6b. Insert durable payment evidence
-    const payment = await paymentModel.insertPaymentRecord(client, {
-      registrationId,
-      amountMinor: isZeroPrice ? 0 : amountMinor,
-      currency,
-      method: isZeroPrice ? 'zero_price' : method,
-      externalReference,
-      notes,
-      recordedBy: treasurerId,
-      idempotencyKey,
-    });
-
-    // 6c. Conditionally confirm registration (pending → confirmed)
-    const confirmed = await paymentModel.confirmRegistration(client, registrationId);
-    if (!confirmed) {
-      // @flow:PAYMENT_CONFIRMATION step 7 — race condition: someone else confirmed it
-      throw new HttpError(409, 'ALREADY_CONFIRMED',
-        'This registration was confirmed by another process. No duplicate payment recorded.');
-    }
-
-    return { payment, registration: confirmed };
-  });
-
-  return { ...result, replayed: false };
+  const event=await eventModel.lockEventForBooking(client,registration.eventId);
+  await client.query('SELECT id FROM registrations WHERE id=$1 FOR UPDATE',[registrationId]);
+  const current=await eventModel.findRegistrationById(client,registrationId);
+  if(current.status==='cancelled')throw new HttpError(409,'REGISTRATION_CANCELLED','Cancelled registrations cannot receive payment.');
+  if(current.status!=='pending')throw new HttpError(409,'ALREADY_CONFIRMED','Registration is already confirmed.');
+  if(!event||event.status!=='published'||new Date(event.endsAt)<=new Date())throw new HttpError(409,'EVENT_UNAVAILABLE','Event is not open for confirmation.');
+  if(amountMinor!==current.priceMinor)throw new HttpError(400,'AMOUNT_MISMATCH','Amount must match the reserved price.');
+  if(currency!==current.currency)throw new HttpError(400,'CURRENCY_MISMATCH','Currency must match the reservation.');
+  if(amountMinor>0&&method==='zero_price')throw new HttpError(400,'INVALID_METHOD','Use a payment method for a nonzero amount.');
+  const payment=await paymentModel.insertPaymentRecord(client,{registrationId,amountMinor,currency,method:effectiveMethod,externalReference,notes,recordedBy:treasurerId,idempotencyKey:key});
+  const confirmed=await paymentModel.confirmRegistration(client,registrationId);
+  if(!confirmed)throw new HttpError(409,'ALREADY_CONFIRMED','Registration changed. Refresh and try again.');
+  return {payment:safePayment(payment),registration:confirmed,replayed:false};
+ });
 }
 
 /**

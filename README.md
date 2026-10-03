@@ -1,3 +1,7 @@
+## Integrated application
+
+See [complete setup and Deep database sync](docs/COMPLETE_SETUP_AND_DEEP_SYNC.md) and [demo flow](docs/FINAL_DEMO_FLOW.md). Current code includes all main prototype modules; mail is local preview and payments are manual records.
+
 # Student Organization System
 
 **Step 4 is implemented:** public events, organizer create/edit, capacity-safe pending reservations and owner-only tickets. See [EVENTS_HANDOFF.md](docs/EVENTS_HANDOFF.md) for setup (including TICKET_SECRET), current API/token contract, verification and remaining payment/check-in work. This supersedes the older planned-events notes below.

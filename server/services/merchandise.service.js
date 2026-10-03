@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import {getMemberProfile} from '../model/member.model.js';
 import * as model from '../model/merchandise.model.js';
 import { transaction } from '../utils/transaction.js';
 import { HttpError } from '../utils/httpError.js';
@@ -83,10 +84,15 @@ export async function submitOrder(pool, userId, { items }, idempotencyKey) {
 
     const variantMap = new Map(lockedVariants.map(v => [v.id, v]));
 
+    // @rule:MEMBER_MERCH_PRICE — eligible paid membership applies the configured plan discount.
+    const member=await getMemberProfile(client,userId,new Date());
+    const plan=member?.membershipStatus==='active'?(await client.query('SELECT merch_discount_pct FROM membership_plans WHERE id=$1',[member.planId])).rows[0]:null;
+    const discount=plan?.merch_discount_pct||0;
+    for(const variant of lockedVariants) variant.priceMinor=Math.floor(variant.priceMinor*(100-discount)/100);
     // 4. Validate all variants exist, are active, and have sufficient stock
     for (const item of items) {
       const variant = variantMap.get(item.variantId);
-      if (!variant || !variant.isActive) {
+      if (!variant || !variant.isActive || !variant.isPublished) {
         throw new HttpError(404, 'VARIANT_NOT_FOUND', `Product variant ${item.variantId} is no longer available.`);
       }
 

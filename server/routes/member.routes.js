@@ -14,6 +14,7 @@ export function memberRouter(pool,config) {
   const limit = rateLimit({ windowMs:15*60*1000, limit:20, standardHeaders:'draft-8', legacyHeaders:false,
     message:{error:{code:'RATE_LIMITED',message:'Too many sign-in attempts. Please try again later.'}} });
   const userAuth = requireUser(pool);
+  router.use((_req,res,next)=>{res.set('Cache-Control','no-store');next();});
   router.get('/auth/csrf',auth.csrf);
   router.post('/auth/register',requireCsrf,limit,validate(registrationSchema),auth.register);
   router.post('/auth/login',requireCsrf,limit,validate(loginSchema),auth.login);

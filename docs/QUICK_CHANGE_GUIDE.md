@@ -226,3 +226,34 @@ Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relativ
 Frontend screens for dues collection, volunteer expense submission/approval, and treasurer reporting dashboard are assigned to Om. Use docs/DUES_FINANCE_API_HANDOFF.md to coordinate implementation.
 
 
+
+
+## Integrated screens (implemented)
+- Announcement layout: client/src/pages/community/AnnouncementsPage.jsx — @edit:ANNOUNCEMENTS_UI. Open /announcements and publish a synthetic draft.
+- Volunteer tasks: client/src/pages/community/TasksPage.jsx — @edit:TASKS_UI. Update an assigned task and refresh.
+- Mail preferences: client/src/pages/community/MailPage.jsx — @edit:MAIL_PREFERENCES. Toggle subscription and refresh.
+- Dues: client/src/pages/staff/DuesPage.jsx — @edit:DUES_PAYMENT_UI. Verify a staff account can see pending dues.
+- Finance: client/src/pages/staff/FinancePage.jsx — @edit:FINANCE_CARDS. Refresh /finance and verify currency labels.
+- Expenses: client/src/pages/staff/ExpensesPage.jsx — @edit:EXPENSES_UI. Upload a synthetic receipt and view it as its owner.
+- Inventory: client/src/pages/staff/InventoryPage.jsx — @edit:INVENTORY_UI. Adjust synthetic stock and verify /shop.
+- Shared module spacing: client/src/styles/modules.css — @edit:MODULE_LAYOUT. Check 390px and desktop widths.
+- Navbar role visibility: client/src/config/navigation.js — @edit:NAVBAR_LINKS. Check member, treasurer and organizer logins.
+- Reminder windows/deduplication: server/services/community.service.js — @flow:RENEWAL_REMINDERS. Run npm run reminders:preview twice on a demo database.
+
+
+## Search and visual refresh (implemented)
+- Global search page: client/src/pages/SearchPage.jsx — @edit:GLOBAL_SEARCH_PAGE.
+  Open /search and test a public query signed out, then a private query signed in.
+- Shared search input: client/src/components/ListControls.jsx — @edit:SEARCH_BAR.
+  Submit a query and verify page resets to 1.
+- Pagination: same file — @edit:PAGINATION. Test Next, page size, browser Back and no results.
+- Layout/theme: client/src/styles/search.css — @edit:SEARCH_LAYOUT.
+  Verify 390px and 1440px widths.
+- Homepage hero: client/src/pages/HomePage.jsx — @edit:HOME_HERO.
+  Use the hero search and module links.
+- Server search visibility: server/model/browse.model.js — @rule:SEARCH_SCOPE.
+  Run server/tests/search.api.test.js with an isolated database.
+- Navigation remains centralized in client/src/config/navigation.js:
+  public/member/staff definitions plus member groups and common utility links.
+
+Check-in event lookup: `client/src/pages/staff/CheckInPage.jsx`, search `@flow:CHECKIN_EVENT_SEARCH`. Shared controls are in `client/src/components/ListControls.jsx`. Verify by searching an event at `/staff/checkin`, selecting it and checking that attendance belongs to the selected event.

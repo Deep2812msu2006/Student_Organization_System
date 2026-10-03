@@ -1,10 +1,15 @@
-import {useEffect,useState} from 'react';
-import {Link} from 'react-router-dom';
-import {api} from '../../services/api.js';
+import {useListState} from '../../hooks/useListState.js';
+import {useResource} from '../../hooks/useResource.js';
+import {ListSearch,Pagination,EmptyList} from '../../components/ListControls.jsx';
+import ModulePanel from '../../components/ModulePanel.jsx';
 import {money,date} from '../../utils/format.js';
-// @edit:TICKET_LAYOUT — pending reservations never display an admission code.
+// @edit:TICKET_LAYOUT — admission codes come only from the owner-scoped API.
 export default function TicketsPage(){
- const [tickets,setTickets]=useState(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
- useEffect(()=>{const c=new AbortController();setError('');api('/tickets/me',{signal:c.signal}).then(r=>setTickets(r.data)).catch(e=>{if(e.name!=='AbortError')setError(e.message);});return()=>c.abort();},[retry]);
- return <section className="container account-page"><p className="eyebrow">YOUR NEXT EXPERIENCE</p><h1>My Tickets</h1><p className="muted">Reservations and admission status for your account.</p><button className="button button-secondary" onClick={()=>setRetry(retry+1)}>Refresh tickets</button>{error&&<p role="alert" className="form-error">{error}</p>}{!tickets&&!error&&<p role="status">Loading tickets…</p>}{tickets?.length===0&&<div className="form-card"><h2>No reservations yet</h2><Link to="/events">Explore events</Link></div>}<div className="event-grid tickets-grid">{tickets?.map(ticket=><article className="form-card ticket-card" key={ticket.id}><span className="status-pill">{ticket.checkedInAt?'Checked in':ticket.status==='pending'?'Pending confirmation':ticket.status}</span><h2>{ticket.eventTitle}</h2><p>{ticket.eventVenue}</p><p>{date(ticket.eventStartsAt)}</p><p>Reserved price: <strong>{money(ticket.priceMinor,ticket.currency)}</strong></p><p className="reference">Reference: {ticket.id}</p>{ticket.admissionCode?<><label htmlFor={`code-${ticket.id}`}>Admission code — show authorized event staff</label><textarea id={`code-${ticket.id}`} readOnly value={ticket.admissionCode} rows={3}/></>:<p className="payment-note">{ticket.status==='pending'?'Your seat is reserved. Await authorized confirmation; this is not yet an admission ticket.':ticket.codeStatus==='reissue_required'?'This legacy ticket needs code reissue by the organizer. No valid admission code is available here.':'No admission code is available for this ticket’s current event/status.'}</p>}</article>)}</div></section>;
+ const list=useListState(),r=useResource('/browse/tickets?'+list.query);
+ return <ModulePanel title="My Tickets" description="Your next experience, and every reservation along the way." resource={r}>
+ <ListSearch list={list} label="Search event, venue or ticket status"><button className="button button-secondary" onClick={r.reload}>Refresh tickets</button></ListSearch>
+ <div className="event-grid">{!r.loading&&r.data?.data.map(t=><article className="form-card ticket-card" key={t.id}><span className="status-pill">{t.checkedInAt?'Checked in':t.status==='pending'?'Pending confirmation':t.status}</span><h2>{t.eventTitle}</h2><p>{t.eventVenue} · {date(t.eventStartsAt)}</p><p>{money(t.priceMinor,t.currency)}</p><p className="reference">Reference: {t.id}</p>{t.admissionCode?<label>Admission code — show authorized event staff<textarea readOnly rows="3" value={t.admissionCode}/></label>:<p className="payment-note">{t.status==='pending'?'Your seat is reserved. Staff must confirm payment before admission.':t.codeStatus==='reissue_required'?'Contact your organizer for code reissue.':'No admission code is available for this event or ticket status.'}</p>}</article>)}</div>
+ {!r.loading&&r.data?.data.length===0&&<EmptyList title="No tickets found" message="Reserve a place at an event or try another search."/>}
+ <Pagination list={list} pagination={r.data?.pagination} loading={r.loading} label="Tickets"/>
+ </ModulePanel>;
 }

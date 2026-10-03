@@ -29,6 +29,7 @@ export function financeRouter(pool, _config) {
     next();
   });
 
+  router.param('id',(_req,_res,next,value)=>next(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)?undefined:new HttpError(400,'INVALID_ID','Invalid identifier.')));
   // ─── Membership Dues Endpoints ──────────────────────────────────────────────
 
   const handlePendingDues = async (req, res) => {
@@ -111,6 +112,7 @@ export function financeRouter(pool, _config) {
         originalFilename,
       });
 
+      await pool.query('INSERT INTO receipt_uploads(receipt_key,owner_id) VALUES($1,$2)',[receipt.receiptKey,req.user.id]);
       res.status(201).json({ data: receipt });
     }
   );
@@ -151,7 +153,7 @@ export function financeRouter(pool, _config) {
     res.set({
       'Content-Type': mimeType,
       'Content-Disposition': 'inline',
-      'Cache-Control': 'private, no-cache',
+      'Cache-Control': 'no-store',
     });
 
     const stream = fs.createReadStream(filePath);

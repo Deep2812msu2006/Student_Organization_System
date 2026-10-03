@@ -1,119 +1,22 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { api } from '../../services/api.js';
-import { money } from '../../utils/format.js';
-import { useCart } from '../../context/CartContext.jsx';
-
-export default function ShopPage() {
-  const [products, setProducts] = useState([]);
-  const [category, setCategory] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const { itemCount } = useCart();
-
-  useEffect(() => {
-    let ignore = false;
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        const query = category ? `?category=${encodeURIComponent(category)}` : '';
-        const res = await api(`/products${query}`);
-        if (!ignore) setProducts(res.data || []);
-      } catch (err) {
-        if (!ignore) setError(err.message || 'Unable to load products.');
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      ignore = true;
-    };
-  }, [category]);
-
-  const categories = [
-    { label: 'All Items', value: '' },
-    { label: 'Apparel', value: 'apparel' },
-    { label: 'Accessories', value: 'accessories' },
-    { label: 'Collectibles', value: 'collectibles' },
-    { label: 'Exclusive', value: 'exclusive' },
-  ];
-
-  return (
-    // @edit:MERCHANDISE_LAYOUT — main shopping catalog layout and filters
-    <section className="container shop-page">
-      <div className="shop-header">
-        <div className="shop-title-row">
-          <div>
-            <p className="eyebrow">OFFICIAL GEAR & MERCHANDISE</p>
-            <h1>Skyline Club Store</h1>
-            <p className="muted">Show your colors. Order official club apparel, accessories and collectibles.</p>
-          </div>
-          <div>
-            <Link className="button button-secondary" to="/cart">
-              View Cart {itemCount > 0 && <span className="cart-badge">{itemCount}</span>}
-            </Link>
-          </div>
-        </div>
-
-        <div className="shop-filters" role="group" aria-label="Category filters">
-          {categories.map(cat => (
-            <button
-              key={cat.value}
-              type="button"
-              className={`filter-pill ${category === cat.value ? 'active' : ''}`}
-              onClick={() => setCategory(cat.value)}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {loading && <p className="muted">Loading merchandise catalog…</p>}
-      {error && <p className="form-error" role="alert">{error}</p>}
-
-      {!loading && !error && products.length === 0 && (
-        <div className="empty-card" style={{ padding: 'var(--space-8)', textAlign: 'center' }}>
-          <h3>No merchandise available</h3>
-          <p className="muted">Check back soon for new club apparel and accessories.</p>
-        </div>
-      )}
-
-      <div className="product-grid">
-        {products.map(product => {
-          const variants = product.variants || [];
-          const inStock = variants.some(v => v.stockQuantity > 0);
-          const minPrice = variants.length > 0 ? Math.min(...variants.map(v => v.priceMinor)) : 0;
-          const maxPrice = variants.length > 0 ? Math.max(...variants.map(v => v.priceMinor)) : 0;
-          const currency = variants[0]?.currency || 'INR';
-
-          return (
-            // @edit:PRODUCT_CARD — catalog product card presentation and pricing
-            <Link key={product.id} className="product-card" to={`/shop/${product.id}`}>
-              <div className="product-card-img-placeholder" aria-hidden="true">
-                {product.category === 'apparel' ? '👕' : product.category === 'accessories' ? '🎒' : '✨'}
-              </div>
-              <div className="product-card-body">
-                <span className="product-card-category">{product.category}</span>
-                <h3 className="product-card-title">{product.name}</h3>
-                <p className="product-card-desc">{product.description || 'No description provided.'}</p>
-                <div className="product-card-footer">
-                  <span className="product-card-price">
-                    {minPrice === maxPrice
-                      ? money(minPrice, currency)
-                      : `${money(minPrice, currency)} – ${money(maxPrice, currency)}`}
-                  </span>
-                  <span className={`stock-tag ${inStock ? 'in-stock' : 'out-of-stock'}`}>
-                    {inStock ? 'In Stock' : 'Sold Out'}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </section>
-  );
+import {site} from '../../config/site.js';
+import {Link,useSearchParams} from 'react-router-dom';
+import {useListState} from '../../hooks/useListState.js';
+import {useResource} from '../../hooks/useResource.js';
+import {ListSearch,Pagination,EmptyList} from '../../components/ListControls.jsx';
+import ModulePanel from '../../components/ModulePanel.jsx';
+import {money} from '../../utils/format.js';
+// @edit:MERCHANDISE_LAYOUT @edit:PRODUCT_CARD
+export default function ShopPage(){
+ const list=useListState(),[params,setParams]=useSearchParams(),category=params.get('category')||'';
+ const r=useResource('/browse/products?'+list.query+'&category='+encodeURIComponent(category));
+ return <ModulePanel title="Wear your club spirit." description="Club essentials, made for the moments you share." resource={r}>
+ <ListSearch list={list} label="Search merchandise"><Link className="button button-secondary" to="/cart">View cart</Link></ListSearch>
+ <div className="filter-chips" aria-label="Product categories">{[['','All products'],['apparel','Apparel'],['accessories','Accessories'],['collectibles','Collectibles'],['exclusive','Exclusive']].map(([value,label])=><button key={value} aria-pressed={category===value} onClick={()=>setParams(prev=>{const p=new URLSearchParams(prev);p.set('category',value);p.set('page','1');return p;})}>{label}</button>)}</div>
+ <div className="product-grid">{!r.loading&&r.data?.data.map((p,index)=>{
+ const variants=p.variants||[],stock=variants.some(v=>v.stockQuantity>0),price=variants.length?Math.min(...variants.map(v=>v.priceMinor)):0;
+ return <Link className="product-card" to={'/shop/'+p.id} key={p.id}><div className={'product-art art-'+index%3} aria-hidden="true"><span>{p.category==='apparel'?'S':'↗'}</span><small>{site.name.toUpperCase()} / CLUB EDITION</small></div><div className="product-body"><div className="product-meta"><span>{p.category}</span><span className="status-pill">{stock?'In stock':'Sold out'}</span></div><h2>{p.name}</h2><p>{p.description}</p><div className="product-bottom"><strong>From {money(price,variants[0]?.currency||'INR')}</strong><span>Choose a size ↗</span></div></div></Link>;
+ })}</div>
+ {!r.loading&&r.data?.data.length===0&&<EmptyList title="No products found" message="Try another search or category."/>}
+ <Pagination list={list} pagination={r.data?.pagination} loading={r.loading} label="Products"/>
+ </ModulePanel>;
 }
