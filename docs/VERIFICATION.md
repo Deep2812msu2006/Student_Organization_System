@@ -69,3 +69,13 @@ private local storage. Separate local databases do not synchronize rows.
 - Fixed check-in's first-50-event limitation using shared database search and pagination. Attendance is cleared while switching events to avoid showing previous-event totals.
 - Browser runs used synthetic local development records and left their demo transactions in the local database. Production data and Deep's separate database were not exercised.
 - These checks cover the listed workflows, not a guarantee of every possible input/device. Payments remain manual records; email remains a local preview.
+
+## Presentation readiness recheck — latest main 612445c
+- 115 automated tests passed, no failures/skips; production build and git diff whitespace check passed.
+- Applied migration 011 to the isolated test database before testing; local development migrations were already current.
+- Browser verified: search/pagination/mobile navigation; registration, enrollment, dues confirmation and persisted active benefits; event creation/edit, member pricing, booking, manual payment, ticket code, attendance and duplicate denial; merchandise order/payment/fulfillment; announcement publication, task assignment/progress, receipt upload/reimbursement and finance.
+- Fixed publishing via announcement edits so it queues the mailing list atomically, with a regression test.
+- Added per-event recorded ticket receipts beside attendance, with a regression assertion.
+- Razorpay retained. Signature checks now additionally validate provider-fetched purchase/owner/amount/currency and captured, non-refunded status. Eleven synthetic gateway tests cover mismatches and provider failure. No actual provider payment was made in this rehearsal.
+- Removed the blocking page-level Razorpay script; existing on-demand loader still opens checkout when requested.
+- Local UI and API are running; health reports database connected. Email delivery remains local preview only. Browser tests leave synthetic demo transactions; use list search to select your presentation record.

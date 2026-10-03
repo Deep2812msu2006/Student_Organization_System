@@ -89,10 +89,16 @@ export async function getEventAttendance(pool, eventId) {
   }
 
   const totals = await paymentModel.getAttendanceTotals(pool, eventId);
+  // @rule:EVENT_REVENUE — count recorded payments, never pending reservation prices.
+  const {rows:[revenue]} = await pool.query(
+    `SELECT COALESCE(sum(p.amount_minor),0)::bigint AS collected
+     FROM payment_records p JOIN registrations r ON r.id=p.registration_id WHERE r.event_id=$1`,[eventId]);
   return {
     eventId: event.id,
     eventTitle: event.title,
     capacity: event.capacity,
+    ticketRevenueMinor: Number(revenue.collected),
+    currency: event.currency,
     ...totals,
   };
 }

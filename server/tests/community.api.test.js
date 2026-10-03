@@ -68,6 +68,14 @@ test('community integration: authorization, announcements, consent, reminders, t
  assert.equal(del.status,200);
  assert.ok(!(await org.call('/announcements')).data.some(x=>x.id===a.data.id));
  });
+ await t.test('publishing through edits queues one announcement and deletion removes it',async()=>{
+ await member.call('/mail/preferences','PUT',{subscribed:true});
+ const a=await org.call('/announcements','POST',{title:'Edit publication',body:'Meeting tomorrow',audience:'members'});
+ for(const method of ['PUT','PATCH'])assert.equal((await org.call('/announcements/'+a.data.id,method,{status:'published'})).status,200);
+ assert.equal((await pool.query('SELECT count(*)::int n FROM message_outbox WHERE user_id=$1 AND source_key=$2',[member.id,'announcement:'+a.data.id])).rows[0].n,1);
+ assert.equal((await org.call('/announcements/'+a.data.id,'DELETE')).status,200);
+ assert.equal((await pool.query('SELECT count(*)::int n FROM message_outbox WHERE source_key=$1',['announcement:'+a.data.id])).rows[0].n,0);
+ });
  await t.test('event confirmation retries are atomic and reject changed payloads',async()=>{
  const event=await createEvent(pool,{title:'Payment race',venue:'Hall',startsAt:new Date(Date.now()+86400000).toISOString(),endsAt:new Date(Date.now()+172800000).toISOString(),capacity:10,memberPriceMinor:500,publicPriceMinor:1000,currency:'INR',status:'published',createdBy:org.id});events.push(event.id);
  const token=randomUUID();
@@ -78,6 +86,9 @@ test('community integration: authorization, announcements, consent, reminders, t
  assert.equal((await org.call('/payments/manual','POST',{...payload,amountMinor:400},headers)).status,409);
  assert.equal((await org.call('/checkins','POST',{eventId:event.id,ticketToken:token})).status,200);
  assert.equal((await org.call('/checkins','POST',{eventId:event.id,ticketToken:token})).status,409);
+ const attendance=await org.call('/events/'+event.id+'/attendance');
+ assert.equal(attendance.data.ticketRevenueMinor,500);
+ assert.equal(attendance.data.checkedIn,1);
  });
  await t.test('tasks are scoped to assignees and record status history',async()=>{
  const a=await org.call('/tasks','POST',{title:'Arrange chairs',assigneeId:member.id,description:'Before the event'});assert.equal(a.status,201);

@@ -25,3 +25,33 @@ Use two separate browser profiles so staff and member sessions do not replace ea
 A pending claim with missing legacy receipt files must have its receipt re-uploaded
 by its owner. Known synthetic fixture receipts are supplied by seed 006.
 Do not label previewed emails as delivered, or net recorded movement as a bank balance.
+
+## Presentation rehearsal: 4 October 2026
+
+Latest main integrated through 612445c, including event/product photos and Razorpay.
+Razorpay remains available. Checkout loads on demand so an unavailable external
+script does not block the local homepage. Gateway verification now checks the
+provider's order owner, purchase ID, amount, currency and captured payment status,
+in addition to the signature. Unit tests use a synthetic provider; no real charge
+was initiated during this rehearsal. Provider reference:
+https://razorpay.com/docs/api/payments/fetch-with-id/
+
+Announcement publication through the edit form now queues the mailing list in the
+same transaction as the edit. Event attendance now includes recorded ticket revenue;
+pending reservations do not count as income.
+
+Presentation order: membership → event/ticket/check-in → shop/order → announcement
+and volunteer task → expense receipt/reimbursement → financial summary.
+Keep a member and organizer in separate browser profiles. Use Cash on checkout for
+the offline walkthrough, or your configured Razorpay test account for the gateway.
+Never enter real card or bank details for a rehearsal.
+
+Local app: http://127.0.0.1:5173/ . API health: http://127.0.0.1:5000/api/health .
+Start with npm run dev from the repository root. Keep that terminal running.
+The existing local PostgreSQL instance must also stay running.
+
+Mailing-list opt-in, outbox previews and renewal selection work locally. External
+email delivery and automatic scheduling are not implemented: demonstrate them as
+queued previews, not sent messages. Razorpay requires network access; the remaining
+local workflows do not require an external provider. Git shares migrations, not
+local database records or receipt files.

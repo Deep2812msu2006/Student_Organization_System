@@ -3,7 +3,7 @@ import { api } from '../../services/api.js';
 import { useListState } from '../../hooks/useListState.js';
 import { useResource } from '../../hooks/useResource.js';
 import { ListSearch, Pagination } from '../../components/ListControls.jsx';
-import { date } from '../../utils/format.js';
+import { date, money } from '../../utils/format.js';
 
 /**
  * @edit:CHECKIN_UI — Staff check-in screen.
@@ -159,6 +159,10 @@ export default function CheckInPage() {
           {attendanceError && <p className="form-error">{attendanceError}</p>}
           {attendance && (
             <div className="attendance-grid">
+              <div className="attendance-stat">
+                <span className="attendance-number">{money(attendance.ticketRevenueMinor || 0,attendance.currency || 'INR')}</span>
+                <span className="attendance-label">Ticket payments received</span>
+              </div>
               <div className="attendance-stat">
                 <span className="attendance-number">{attendance.checkedIn}</span>
                 <span className="attendance-label">Checked In</span>

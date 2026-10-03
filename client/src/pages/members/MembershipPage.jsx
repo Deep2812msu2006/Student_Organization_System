@@ -156,7 +156,7 @@ export default function MembershipPage() {
                   <span className="status-pill" style={{ background: '#fef3c7', color: '#92400e' }}>Pending</span>
                 </div>
                 <p className="muted" style={{ fontSize: '0.85rem', margin: '0 0 0.8rem 0' }}>
-                  Pay online instantly via UPI, Cards, or Netbanking to activate discounts right away.
+                  Pay online using Razorpay, or pay club staff at the campus desk.
                 </p>
                 <button
                   type="button"
@@ -185,7 +185,7 @@ export default function MembershipPage() {
             )}
             {profile.membershipStatus === 'none' && (
               <small className="muted" style={{ marginTop: '0.8rem', display: 'block' }}>
-                Choose a membership plan below to enroll and pay online.
+                Choose a membership plan below. You can pay club staff after enrolling.
               </small>
             )}
           </article>
@@ -196,7 +196,7 @@ export default function MembershipPage() {
         <div className="plan-section">
           <h2>{profile.membershipStatus === 'expired' ? 'Renew your membership' : 'Choose a membership'}</h2>
           <p className="muted">
-            Association year ends {policy?.yearEndDay}/{policy?.yearEndMonth} ({policy?.timeZone}). Pay instantly via Razorpay to activate member perks immediately.
+            Association year ends {policy?.yearEndDay}/{policy?.yearEndMonth} ({policy?.timeZone}). Benefits activate after dues payment is confirmed.
           </p>
           <div className="plans-grid">
             {plans.map((plan) => (

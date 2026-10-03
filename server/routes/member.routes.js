@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import Razorpay from 'razorpay';
-import crypto from 'node:crypto';
+import { verifyGatewayPayment } from '../services/gateway.service.js';
 import { authController } from '../controllers/auth.controller.js';
 import { requireUser, requireRole, requireCsrf } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -95,19 +95,9 @@ export function memberRouter(pool,config) {
       throw new HttpError(400, 'INVALID_PAYMENT_DETAILS', 'Missing Razorpay payment verification fields.');
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    if (!keySecret) {
-      throw new HttpError(500, 'PAYMENT_CONFIG_MISSING', 'Razorpay secret is not configured.');
-    }
-
-    const expectedSignature = crypto
-      .createHmac('sha256', keySecret)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest('hex');
-
-    if (expectedSignature !== razorpay_signature) {
-      throw new HttpError(400, 'INVALID_SIGNATURE', 'Razorpay payment verification signature failed.');
-    }
+    const pendingProfile = await getMemberProfile(pool, req.user.id, new Date());
+    if (!pendingProfile?.duesObligationId) throw new HttpError(404, 'DUES_NOT_FOUND', 'Dues obligation not found.');
+    await verifyGatewayPayment(req.body, {userId:req.user.id,targetField:'duesObligationId',targetId:pendingProfile.duesObligationId,amountMinor:pendingProfile.duesAmountMinor,currency:pendingProfile.currency});
 
     const updatedProfile = await transaction(pool, async client => {
       const profile = await getMemberProfile(client, req.user.id, new Date());
@@ -115,7 +105,7 @@ export function memberRouter(pool,config) {
         throw new HttpError(404, 'DUES_NOT_FOUND', 'Dues obligation not found.');
       }
 
-      const lockedDues = await paymentModel.lockDuesObligationForPayment(client, profile.duesObligationId);
+      const lockedDues = await paymentModel.lockDuesObligationForPayment(client, pendingProfile.duesObligationId);
       if (!lockedDues) {
         throw new HttpError(404, 'DUES_NOT_FOUND', 'Dues obligation not found.');
       }

@@ -30,36 +30,22 @@ export function communityRouter(pool) {
    await model.queueAnnouncement(db,rows[0]);return rows[0];
   });res.json({data});
  });
- r.put('/announcements/:id',auth,staff,requireCsrf,validate(updateAnnouncement),async(req,res)=>{
+ // @flow:ANNOUNCEMENT_EDIT — publishing from the edit form must also queue the mailing list.
+ const editAnnouncement=async(req,res)=>{
   const {title,body,audience,status}=req.validated;
-  const {rows}=await pool.query(
-   `UPDATE announcements
-    SET title=COALESCE($1,title),
-        body=COALESCE($2,body),
-        audience=COALESCE($3,audience),
-        status=COALESCE($4,status),
-        published_at=CASE WHEN $4='published' AND published_at IS NULL THEN now() ELSE published_at END
-    WHERE id=$5 RETURNING *`,
-   [title||null,body||null,audience||null,status||null,req.params.id]
-  );
-  if(!rows[0]) throw new HttpError(404,'NOT_FOUND','Announcement not found.');
-  res.json({data:rows[0]});
- });
- r.patch('/announcements/:id',auth,staff,requireCsrf,validate(updateAnnouncement),async(req,res)=>{
-  const {title,body,audience,status}=req.validated;
-  const {rows}=await pool.query(
-   `UPDATE announcements
-    SET title=COALESCE($1,title),
-        body=COALESCE($2,body),
-        audience=COALESCE($3,audience),
-        status=COALESCE($4,status),
-        published_at=CASE WHEN $4='published' AND published_at IS NULL THEN now() ELSE published_at END
-    WHERE id=$5 RETURNING *`,
-   [title||null,body||null,audience||null,status||null,req.params.id]
-  );
-  if(!rows[0]) throw new HttpError(404,'NOT_FOUND','Announcement not found.');
-  res.json({data:rows[0]});
- });
+  const data=await transaction(pool,async db=>{
+   const {rows}=await db.query(
+    `UPDATE announcements SET title=COALESCE($1,title),body=COALESCE($2,body),
+     audience=COALESCE($3,audience),status=COALESCE($4,status),
+     published_at=CASE WHEN $4='published' AND published_at IS NULL THEN now() ELSE published_at END
+     WHERE id=$5 RETURNING *`,[title??null,body??null,audience??null,status??null,req.params.id]);
+   if(!rows[0])throw new HttpError(404,'NOT_FOUND','Announcement not found.');
+   if(rows[0].status==='published')await model.queueAnnouncement(db,rows[0]);
+   return rows[0];
+  });res.json({data});
+ };
+ r.put('/announcements/:id',auth,staff,requireCsrf,validate(updateAnnouncement),editAnnouncement);
+ r.patch('/announcements/:id',auth,staff,requireCsrf,validate(updateAnnouncement),editAnnouncement);
  r.delete('/announcements/:id',auth,staff,requireCsrf,async(req,res)=>{
   const data=await transaction(pool,async db=>{
    await db.query("DELETE FROM message_outbox WHERE source_key='announcement:'||$1",[req.params.id]);
