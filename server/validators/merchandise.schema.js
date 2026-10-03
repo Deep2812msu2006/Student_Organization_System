@@ -1,30 +1,30 @@
-import { z } from 'zod';
+import Joi, { wrap } from './joiHelper.js';
 
-export const idSchema = z.string().uuid();
+export const idSchema = wrap(Joi.string().guid().required());
 
-export const idempotencySchema = z.string().min(16).max(100).regex(/^[a-zA-Z0-9_-]+$/);
+export const idempotencySchema = wrap(Joi.string().min(16).max(100).pattern(/^[a-zA-Z0-9_-]+$/).required());
 
-export const productQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(50).default(20),
-  category: z.string().trim().max(50).optional(),
-}).strict();
+export const productQuerySchema = wrap(Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  pageSize: Joi.number().integer().min(1).max(50).default(20),
+  category: Joi.string().trim().max(50).optional(),
+}).unknown(false));
 
-export const orderItemSchema = z.object({
-  variantId: z.string().uuid(),
-  quantity: z.number().int().min(1).max(50),
-}).strict();
+export const orderItemSchema = wrap(Joi.object({
+  variantId: Joi.string().guid().required(),
+  quantity: Joi.number().integer().min(1).max(50).required(),
+}).unknown(false));
 
 // Reject any client-supplied prices, totals, currencies, or statuses
-export const orderCreateSchema = z.object({
-  items: z.array(orderItemSchema).min(1).max(20),
-}).strict();
+export const orderCreateSchema = wrap(Joi.object({
+  items: Joi.array().items(orderItemSchema).min(1).max(20).required(),
+}).unknown(false));
 
-export const cancelOrderSchema = z.object({
-  reason: z.string().trim().max(200).optional(),
-}).strict();
+export const cancelOrderSchema = wrap(Joi.object({
+  reason: Joi.string().trim().max(200).optional().allow(''),
+}).unknown(false));
 
-export const orderPaginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(50).default(20),
-}).strict();
+export const orderPaginationSchema = wrap(Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  pageSize: Joi.number().integer().min(1).max(50).default(20),
+}).unknown(false));
