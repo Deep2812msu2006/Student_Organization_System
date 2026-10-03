@@ -78,12 +78,18 @@ getMemberProfile(db, userId, at) // → profile + evaluated membership evidence 
 listMembers(db, { page, pageSize }) // → { rows, total }
 createMembership(db, { userId, planId, startsAt, expiresAt, duesAmountMinor, currency })
 
-// event.model.js
-listPublishedEvents(db, { page, pageSize })
-lockEventForBooking(client, eventId) // → event row FOR UPDATE, or null
-countAllocatedSeats(client, eventId) // use agreed reservation/confirmed states
-insertRegistration(client, { eventId, userId, priceMinor, currency, status, tokenHash, idempotencyKey })
-checkInEligibleTicket(client, { eventId, tokenHash, staffId, at }) // conditional update → row or null
+// event.model.js (Implemented in server/model/event.model.js)
+listPublishedEvents(db, { page, pageSize }) // → { rows, total, page, pageSize } with seatsAvailable
+getEventById(db, eventId) // → event object with seatsAvailable, or null
+createEvent(db, { title, description, venue, startsAt, endsAt, capacity, memberPriceMinor, publicPriceMinor, currency, createdBy, status })
+lockEventForBooking(client, eventId) // → event row FOR UPDATE, or null (@rule:EVENT_CAPACITY)
+countAllocatedSeats(client, eventId) // → integer count of pending + confirmed registrations (@rule:EVENT_CAPACITY)
+insertRegistration(client, { eventId, userId, priceMinor, currency, status, tokenHash, idempotencyKey }) // → registration row
+checkInEligibleTicket(client, { eventId, tokenHash, staffId, at }) // conditional update → row or null (@rule:CHECKIN_ONCE)
+listUserTickets(db, userId) // → registrations joined with event summary for user
+findRegistrationById(db, registrationId) // → registration row or null
+findRegistrationByIdempotencyKey(db, idempotencyKey) // → registration row or null
+updateRegistrationStatus(client, { registrationId, status }) // → updated registration row or null
 
 // order.model.js
 lockVariants(client, variantIds) // deterministic order; rows FOR UPDATE

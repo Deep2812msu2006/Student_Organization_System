@@ -87,6 +87,23 @@ Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relativ
 - `createMembership` inserts both `membership_periods` and `dues_obligations` (pending) atomically.
 - Verify: rollback test in `server/tests/member.model.test.js`.
 
+## Event capacity allocation rule
+
+- Tag: `@rule:EVENT_CAPACITY`
+- DB schema: `database/migrations/005_events_and_registrations.sql`, index `registrations_event_status_idx`.
+- Model: `server/model/event.model.js` (`lockEventForBooking` with `FOR UPDATE`, `countAllocatedSeats`).
+- Policy: Pending and confirmed registrations both consume capacity. Cancelled registrations release capacity.
+- Concurrency protection: Service acquires a transaction client, locks the event row (`FOR UPDATE`), checks `countAllocatedSeats(client, eventId) < event.capacity`, and inserts registration.
+- Verify: Concurrency race test in `server/tests/event.model.test.js`.
+
+## Atomic one-time ticket check-in rule
+
+- Tag: `@rule:CHECKIN_ONCE`
+- DB schema: `database/migrations/005_events_and_registrations.sql`, unique index on `token_hash`, check constraint `(checked_in_at IS NULL OR status = 'confirmed')`.
+- Model: `server/model/event.model.js`, `checkInEligibleTicket`.
+- Enforcement: Single conditional atomic UPDATE checking `event_id`, `token_hash`, `status = 'confirmed'`, and `checked_in_at IS NULL`. Returns updated row on first success, `null` on repeat or invalid attempts.
+- Verify: Idempotency & duplicate check-in tests in `server/tests/event.model.test.js`.
+
 ## Add a new migration
 
 - Tag: `@edit:ADD_MIGRATION`
@@ -103,4 +120,4 @@ Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relativ
 
 ## Planned features — not yet implemented
 
-Ticket rules, stock, expense approvals, business navigation and user permissions have no business implementation yet. Use API_CONTRACT.md to coordinate future files. Once implemented, put @rule comments beside the authoritative server/SQL logic and add the actual file/function here.
+Merchandise stock, expense approvals, business navigation and remaining permissions have no business implementation yet. Use API_CONTRACT.md to coordinate future files. Once implemented, put @rule comments beside the authoritative server/SQL logic and add the actual file/function here.

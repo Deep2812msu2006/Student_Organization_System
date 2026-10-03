@@ -20,7 +20,7 @@
     "migrate": "node database/migrate.js",
     "migrate:status": "node database/migrate.js --status",
     "seed:dev": "node database/seed.js",
-    "test:models": "node --test server/tests/auth.model.test.js server/tests/member.model.test.js"
+    "test:models": "node --test server/tests/auth.model.test.js server/tests/member.model.test.js server/tests/event.model.test.js"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"
