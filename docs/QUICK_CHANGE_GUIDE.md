@@ -145,10 +145,21 @@ Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relativ
 - Schema: database/migrations/006_payment_records.sql. Additive migration, no existing tables modified.
 - Validation: server/validators/checkin.schema.js. Zod schemas for check-in and payment requests.
 
+## Merchandise and Club Store (implemented)
+
+- `@edit:MERCHANDISE_LAYOUT`: `client/src/styles/shop.css` and `client/src/pages/shop/ShopPage.jsx`. Catalog filter pills, product grid, responsive 2-column detail layout, and cart summary card.
+- `@edit:PRODUCT_CARD`: `client/src/pages/shop/ShopPage.jsx`. Product card representation, category badge, dynamic price range, and in-stock/sold-out indicator.
+- `@edit:CART_UI`: `client/src/pages/shop/CartPage.jsx`. Local cart management, quantity steppers, item removal, estimated subtotal, and stock-conflict error feedback.
+- `@edit:ORDER_STATUS`: `client/src/pages/shop/OrdersPage.jsx` and `client/src/pages/shop/OrderDetailPage.jsx`. Distinct visual badges and explanations for `pending` (awaiting payment), `paid`, `cancelled` and `fulfilled`.
+- `@flow:ORDER_SUBMISSION`: `server/services/merchandise.service.js`. Atomic checkout transaction locking variants deterministically, checking stock, deducting inventory, and snapshotting item names/prices.
+- Router: `server/routes/merchandise.routes.js`. Public catalog (`GET /products`, `GET /products/:id`), authenticated ordering (`POST /orders` with `Idempotency-Key` and CSRF), user orders (`GET /orders/me`, `GET /orders/:id`), and cancellation (`POST /orders/:id/cancel`).
+- Validation: `server/validators/merchandise.schema.js`. Rejects client-supplied prices, totals, currencies, and unauthorized statuses.
+
 ## Merchandise stock and ordering rules
 
 - Tag: `@rule:VARIANT_LOCK_ORDER`
 - Model: `server/model/merchandise.model.js`, `lockVariantsForOrder`.
+- Service: `server/services/merchandise.service.js`, `submitOrder`.
 - Invariant: Multi-item checkouts sort variant IDs and lock rows with `ORDER BY id ASC FOR UPDATE` to avoid PostgreSQL deadlocks under concurrency.
 
 - Tag: `@rule:STOCK_DEDUCT_ON_ORDER`
@@ -159,10 +170,12 @@ Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relativ
 - Tag: `@rule:ORDER_IDEMPOTENCY`
 - Schema: `database/migrations/007_merchandise_and_orders.sql`, UNIQUE constraint on `orders.idempotency_key`.
 - Model: `server/model/merchandise.model.js`, `insertOrder`, `findOrderByIdempotencyKey`.
-- Invariant: Orders with matching idempotency key and matching payload return the existing order. Replays with changed payloads are rejected.
+- Service: `server/services/merchandise.service.js`, `submitOrder`.
+- Invariant: Orders with matching idempotency key and matching payload return the existing order (200 OK replay). Replays with changed payloads are rejected with 409 Conflict.
 
 - Tag: `@rule:STOCK_RESTORE_ON_CANCEL`
 - Model: `server/model/merchandise.model.js`, `cancelOrder`.
+- Service: `server/services/merchandise.service.js`, `cancelCustomerOrder`.
 - Invariant: Order cancellation conditionally transitions status `WHERE status IN ('pending', 'paid')` and restores variant stock for each item inside the transaction. Subsequent cancellation calls affect 0 rows and cannot double-restore stock.
 
 ## Planned features — not yet implemented
