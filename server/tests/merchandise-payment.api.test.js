@@ -478,7 +478,62 @@ test('Merchandise Payment API: manual confirmation, roles, idempotency, races, a
     assert.deepEqual(statuses, [200, 201], 'One request inserts (201), the other safely replays (200)');
   });
 
-  // ─── 8. Existing Event Registration Payment Regression ──────────────────────
+  // ─── 8. Cancellation Race & Paid-Order Guard via Real API ───────────────────
+
+  await t.test('Cancellation race between customer and staff confirmation via real API (@rule:ORDER_LOCK_ORDER)', async () => {
+    const order = await seedOrder(member.id, variant, 1);
+    const key = `race_${randomUUID().replace(/-/g, '')}`;
+    const payload = {
+      orderId: order.id,
+      amountMinor: 4500,
+      currency: 'USD',
+      method: 'cash',
+    };
+
+    // Both customer cancellation and staff payment confirmation execute concurrently
+    const [cancelRes, paymentRes] = await Promise.all([
+      member.client(`/orders/${order.id}/cancel`, 'POST', { reason: 'Race test cancellation' }),
+      treasurer.client('/payments/merchandise/manual', 'POST', payload, { 'Idempotency-Key': key }),
+    ]);
+
+    // Exactly one succeeds, the other is rejected with 409 Conflict
+    const successCount = (cancelRes.status === 200 ? 1 : 0) + (paymentRes.status === 201 ? 1 : 0);
+    assert.equal(successCount, 1, 'Exactly one concurrent mutation must succeed');
+
+    if (cancelRes.status === 200) {
+      assert.equal(paymentRes.status, 409, 'Payment confirmation must fail when cancellation wins');
+      assert.equal(paymentRes.error?.code, 'ORDER_CANCELLED');
+      const dbOrder = await getOrderDetails(pool, order.id);
+      assert.equal(dbOrder.status, 'cancelled');
+    } else {
+      assert.equal(paymentRes.status, 201, 'Payment confirmation succeeded');
+      assert.equal(cancelRes.status, 409, 'Customer cancellation must fail when payment wins');
+      assert.equal(cancelRes.error?.code, 'CANNOT_CANCEL');
+      const dbOrder = await getOrderDetails(pool, order.id);
+      assert.equal(dbOrder.status, 'paid');
+    }
+  });
+
+  await t.test('Customer cancellation of paid order is rejected via real API (@rule:PENDING_ONLY_CANCEL)', async () => {
+    const order = await seedOrder(member.id, variant, 1);
+    const key = `paidcancel_${randomUUID().replace(/-/g, '')}`;
+
+    // Confirm payment first
+    const payRes = await treasurer.client('/payments/merchandise/manual', 'POST', {
+      orderId: order.id,
+      amountMinor: 4500,
+      currency: 'USD',
+      method: 'cash',
+    }, { 'Idempotency-Key': key });
+    assert.equal(payRes.status, 201);
+
+    // Attempt customer cancellation on paid order
+    const cancelRes = await member.client(`/orders/${order.id}/cancel`, 'POST', { reason: 'Want refund' });
+    assert.equal(cancelRes.status, 409);
+    assert.equal(cancelRes.error?.code, 'CANNOT_CANCEL');
+  });
+
+  // ─── 9. Existing Event Registration Payment Regression ──────────────────────
 
   await t.test('Existing event registration payment confirmation regression', async () => {
     const event = await createEvent(pool, {
