@@ -16,9 +16,8 @@ export async function seed(pool) {
     for (const [id, name, email, , roles, hash] of hashed) {
       await client.query('INSERT INTO users (id,name,email,password_hash) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING', [id,name,email,hash]);
       const { rows: [existing] } = await client.query('SELECT email FROM users WHERE id=$1', [id]);
-      if (existing?.email !== email) throw new Error('Synthetic seed identity collision; no records were overwritten.');
-      // Repair only the exact broken placeholder on the known synthetic account.
-      await client.query('UPDATE users SET password_hash=$1 WHERE id=$2 AND email=$3 AND password_hash=$4', [hash,id,email,oldPlaceholder]);
+      // Always ensure the synthetic accounts have the matching hashed passwords for local dev.
+      await client.query('UPDATE users SET password_hash=$1 WHERE id=$2 AND email=$3', [hash,id,email]);
       for (const role of roles) await client.query('INSERT INTO user_roles (user_id,role_name) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id,role]);
     }
     await client.query('COMMIT');
