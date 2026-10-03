@@ -24,14 +24,15 @@
  */
 
 /**
- * Insert a durable payment evidence record for an event registration or merchandise order.
+ * Insert a durable payment evidence record for an event registration, merchandise order, or membership dues.
  *
- * @rule:PAYMENT_TARGET_MUTEX — Exactly one of registrationId OR orderId must be supplied.
+ * @rule:PAYMENT_TARGET_MUTEX — Exactly one of registrationId OR orderId OR duesObligationId must be supplied.
  *
  * @param {import('pg').PoolClient} client - Must be inside caller's transaction
  * @param {{
  *   registrationId?: string|null,
  *   orderId?: string|null,
+ *   duesObligationId?: string|null,
  *   amountMinor: number,
  *   currency: string,
  *   method: string,
@@ -45,6 +46,7 @@
 export async function insertPaymentRecord(client, {
   registrationId = null,
   orderId = null,
+  duesObligationId = null,
   amountMinor,
   currency,
   method,
@@ -55,13 +57,14 @@ export async function insertPaymentRecord(client, {
 }) {
   const { rows } = await client.query(
     `INSERT INTO payment_records
-       (registration_id, order_id, amount_minor, currency, method, external_reference,
+       (registration_id, order_id, dues_obligation_id, amount_minor, currency, method, external_reference,
         notes, recorded_by, idempotency_key)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING
        id,
        registration_id AS "registrationId",
        order_id AS "orderId",
+       dues_obligation_id AS "duesObligationId",
        amount_minor AS "amountMinor",
        currency,
        method,
@@ -70,7 +73,7 @@ export async function insertPaymentRecord(client, {
        recorded_by AS "recordedBy",
        idempotency_key AS "idempotencyKey",
        created_at AS "createdAt"`,
-    [registrationId, orderId, amountMinor, currency, method, externalReference,
+    [registrationId, orderId, duesObligationId, amountMinor, currency, method, externalReference,
      notes, recordedBy, idempotencyKey]
   );
   return rows[0];
@@ -90,6 +93,7 @@ export async function findPaymentByIdempotencyKey(db, idempotencyKey) {
        id,
        registration_id AS "registrationId",
        order_id AS "orderId",
+       dues_obligation_id AS "duesObligationId",
        amount_minor AS "amountMinor",
        currency,
        method,
@@ -156,6 +160,179 @@ export async function findPaymentByOrder(db, orderId) {
     [orderId]
   );
   return rows[0] ?? null;
+}
+
+/**
+ * Find payment record for a given membership dues obligation.
+ *
+ * @param {import('pg').Pool|import('pg').PoolClient} db
+ * @param {string} duesObligationId
+ * @returns {Promise<object|null>}
+ */
+export async function findPaymentByDuesObligation(db, duesObligationId) {
+  const { rows } = await db.query(
+    `SELECT
+       id,
+       dues_obligation_id AS "duesObligationId",
+       amount_minor AS "amountMinor",
+       currency,
+       method,
+       external_reference AS "externalReference",
+       notes,
+       recorded_by AS "recordedBy",
+       idempotency_key AS "idempotencyKey",
+       created_at AS "createdAt"
+     FROM payment_records
+     WHERE dues_obligation_id = $1`,
+    [duesObligationId]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Lock a membership dues obligation row for payment confirmation or waiver.
+ * Joins membership_periods to ensure user and period boundaries are accessible.
+ *
+ * @param {import('pg').PoolClient} client
+ * @param {string} duesObligationId
+ * @returns {Promise<object|null>}
+ */
+export async function lockDuesObligationForPayment(client, duesObligationId) {
+  const { rows } = await client.query(
+    `SELECT
+       d.id,
+       d.membership_period_id AS "membershipPeriodId",
+       d.amount_minor AS "amountMinor",
+       d.currency,
+       d.status,
+       d.paid_at AS "paidAt",
+       d.payment_ref AS "paymentRef",
+       mp.user_id AS "userId",
+       mp.plan_id AS "planId",
+       mp.starts_at AS "startsAt",
+       mp.expires_at AS "expiresAt"
+     FROM dues_obligations d
+     JOIN membership_periods mp ON mp.id = d.membership_period_id
+     WHERE d.id = $1
+     FOR UPDATE`,
+    [duesObligationId]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Conditionally confirm a pending dues obligation as 'paid'.
+ * Returns null if the obligation was not in 'pending' status.
+ *
+ * @rule:DUES_PAYMENT_ONCE — Transition pending -> paid only.
+ *
+ * @param {import('pg').PoolClient} client
+ * @param {{ duesObligationId: string, paymentRef?: string|null, paidAt?: string }} params
+ * @returns {Promise<object|null>}
+ */
+export async function confirmDuesPayment(client, {
+  duesObligationId,
+  paymentRef = null,
+  paidAt = new Date().toISOString(),
+}) {
+  const { rows } = await client.query(
+    `UPDATE dues_obligations
+     SET
+       status = 'paid',
+       paid_at = $1,
+       payment_ref = $2,
+       updated_at = now()
+     WHERE id = $3 AND status = 'pending'
+     RETURNING
+       id,
+       membership_period_id AS "membershipPeriodId",
+       amount_minor AS "amountMinor",
+       currency,
+       status,
+       paid_at AS "paidAt",
+       payment_ref AS "paymentRef",
+       updated_at AS "updatedAt"`,
+    [paidAt, paymentRef, duesObligationId]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Grant a waiver for a pending membership dues obligation.
+ * Waivers do NOT record a payment_records row (amount received is 0).
+ *
+ * @param {import('pg').PoolClient} client
+ * @param {{ duesObligationId: string, notes?: string, at?: string }} params
+ * @returns {Promise<object|null>}
+ */
+export async function waiveDuesObligation(client, {
+  duesObligationId,
+  notes = '',
+  at = new Date().toISOString(),
+}) {
+  const { rows } = await client.query(
+    `UPDATE dues_obligations
+     SET
+       status = 'waived',
+       payment_ref = $1,
+       updated_at = now()
+     WHERE id = $2 AND status = 'pending'
+     RETURNING
+       id,
+       membership_period_id AS "membershipPeriodId",
+       amount_minor AS "amountMinor",
+       currency,
+       status,
+       payment_ref AS "paymentRef",
+       updated_at AS "updatedAt"`,
+    [notes ? `waived: ${notes}` : 'waived', duesObligationId]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * List pending dues obligations for the treasurer confirmation screen.
+ *
+ * @param {import('pg').Pool|import('pg').PoolClient} db
+ * @param {{ page?: number, pageSize?: number }} [params]
+ * @returns {Promise<{ rows: Array<object>, total: number, page: number, pageSize: number }>}
+ */
+export async function listPendingDuesObligations(db, { page = 1, pageSize = 20 } = {}) {
+  const safePage = Math.max(1, parseInt(page, 10) || 1);
+  const safePageSize = Math.min(50, Math.max(1, parseInt(pageSize, 10) || 20));
+  const offset = (safePage - 1) * safePageSize;
+
+  const countResult = await db.query(
+    `SELECT COUNT(*)::int AS total FROM dues_obligations WHERE status = 'pending'`
+  );
+  const total = countResult.rows[0]?.total ?? 0;
+
+  const { rows } = await db.query(
+    `SELECT
+       d.id,
+       d.membership_period_id AS "membershipPeriodId",
+       d.amount_minor AS "amountMinor",
+       d.currency,
+       d.status,
+       d.created_at AS "createdAt",
+       mp.user_id AS "userId",
+       u.name AS "userName",
+       u.email AS "userEmail",
+       mp.plan_id AS "planId",
+       p.name AS "planName",
+       mp.starts_at AS "startsAt",
+       mp.expires_at AS "expiresAt"
+     FROM dues_obligations d
+     JOIN membership_periods mp ON mp.id = d.membership_period_id
+     JOIN users u ON u.id = mp.user_id
+     JOIN membership_plans p ON p.id = mp.plan_id
+     WHERE d.status = 'pending'
+     ORDER BY d.created_at ASC
+     LIMIT $1 OFFSET $2`,
+    [safePageSize, offset]
+  );
+
+  return { rows, total, page: safePage, pageSize: safePageSize };
 }
 
 /**

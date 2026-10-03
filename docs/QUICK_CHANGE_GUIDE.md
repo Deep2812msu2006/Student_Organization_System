@@ -193,6 +193,27 @@ Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relativ
 - Validation: `server/validators/checkin.schema.js`, `merchandisePaymentSchema` and `pendingOrderQuerySchema`.
 - Permissions: Explicitly supports `treasurer` role; `organizer` is also authorized. Ordinary members and volunteers are strictly denied (403 `FORBIDDEN`).
 
+## Membership Dues and Waiver rules (implemented database layer)
+
+- Tag: `@rule:DUES_PAYMENT_ONCE`
+- Schema: `database/migrations/009_dues_and_expenses.sql`, unique partial index `payment_records_unique_dues_obligation_idx`.
+- Model: `server/model/payment.model.js`, `confirmDuesPayment`, `lockDuesObligationForPayment`.
+- Invariant: Dues payments link durable payment evidence to `dues_obligation_id`. Atomic update conditionally checks `WHERE status = 'pending'`. Membership period dates are preserved and never altered. Waivers (`waiveDuesObligation`) mark obligation `waived` without creating payment records.
+
+## Volunteer Expense Lifecycle rules (implemented database layer)
+
+- Tag: `@rule:EXPENSE_LIFECYCLE`
+- Schema: `database/migrations/009_dues_and_expenses.sql`, `expenses` table with check constraint `expenses_decision_check`.
+- Model: `server/model/expense.model.js`, `createExpense`, `decideExpense`, `reimburseExpense`.
+- Invariant: Minimal state machine `submitted` -> `approved`/`rejected` -> `reimbursed`. Rejections mandate a reason. Reimbursements require approval, reimbursement actor, timestamp, payment reference, and unique `reimbursement_idempotency_key`.
+
+## Financial Summary Reporting (implemented database layer)
+
+- Tag: `@flow:FINANCIAL_SUMMARY`
+- Model: `server/model/finance.model.js`, `getFinancialSummary`.
+- Invariant: Parameterized aggregation of durable payment records (dues, event tickets, merchandise orders) and reimbursed expenses. Currencies are strictly separated and never mixed. Distinguishes approved unpaid expenses (liabilities) and uncollected dues (pending vs. waived). Net cash movement (`totalReceipts - reimbursedExpenses`) is documented as transactional flow, not an audited bank balance.
+
 ## Planned features — not yet implemented
 
-Expense approvals, financial reporting, business navigation and remaining permissions have no business implementation yet. Use API_CONTRACT.md to coordinate future files. Once implemented, put @rule comments beside the authoritative server/SQL logic and add the actual file/function here.
+Frontend screens and API endpoints for dues collection, expense submission/approval, and treasurer reporting are assigned to Dharmik (APIs) and Om (UI). Use docs/DUES_FINANCE_DATABASE_HANDOFF.md to coordinate implementation.
+
