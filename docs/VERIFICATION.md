@@ -1,5 +1,7 @@
 # Foundation verification
 
+> New milestone: all 24 tests passed with a real isolated PostgreSQL test database, with no skips; frontend build and browser signup/enrollment/session/role flows passed. Details and database-foundation repairs are in [AUTH_MEMBERSHIP_HANDOFF.md](AUTH_MEMBERSHIP_HANDOFF.md). The record below is the original foundation verification.
+
 Verified on 2026-10-03 in the local Windows checkout on branch `om/project-setup`.
 
 ## Passed

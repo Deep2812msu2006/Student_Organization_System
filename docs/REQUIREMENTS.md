@@ -1,5 +1,7 @@
 # Requirements and scope
 
+> Milestone update: signup/login/logout, sessions, membership enrollment/profile and organizer directory are implemented. See [AUTH_MEMBERSHIP_HANDOFF.md](AUTH_MEMBERSHIP_HANDOFF.md) for current scope and verification. Foundation-only statements below describe the prior milestone.
+
 ## Source boundaries
 
 Sources: user instructions, the supplied four-page Student Organization System PDF, and the supplied must-have/nice-to-have screenshot. No organization video was provided. Do not claim video-specific requirements. The Sports Club brief is not this project's scope. Requirements below describe the eventual product; this branch implements only the foundation.

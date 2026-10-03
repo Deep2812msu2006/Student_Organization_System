@@ -1,5 +1,7 @@
 # API and model contracts
 
+> Current implementation: [AUTH_MEMBERSHIP_HANDOFF.md](AUTH_MEMBERSHIP_HANDOFF.md) specifies the implemented auth/member endpoints, CSRF handshake and response shapes. The foundation-only descriptions below are historical; use the handoff for the current milestone. Other business endpoints remain planned.
+
 ## Implemented now
 
 GET `/api/live`: public liveness, no database dependency. 200 `{ "data": { "status": "ok", "api": "available" } }`.

@@ -76,10 +76,13 @@ export async function getMemberProfile(db, userId, at) {
        END AS "membershipStatus"
      FROM users u
      LEFT JOIN LATERAL (
-       -- Most recent period by starts_at; one period per evaluation.
+       -- Prefer the current period; a future renewal must not hide current eligibility.
        SELECT * FROM membership_periods
         WHERE user_id = u.id
-        ORDER BY starts_at DESC
+        ORDER BY CASE WHEN starts_at <= $2 AND expires_at > $2 THEN 0
+                      WHEN starts_at > $2 THEN 1 ELSE 2 END,
+                 CASE WHEN starts_at > $2 THEN starts_at END ASC,
+                 starts_at DESC, id
         LIMIT 1
      ) mp ON true
      LEFT JOIN membership_plans pl ON pl.id = mp.plan_id
@@ -127,7 +130,10 @@ export async function listMembers(db, { page, pageSize }) {
        LEFT JOIN LATERAL (
          SELECT * FROM membership_periods
           WHERE user_id = u.id
-          ORDER BY starts_at DESC
+          ORDER BY CASE WHEN starts_at <= $3 AND expires_at > $3 THEN 0
+                        WHEN starts_at > $3 THEN 1 ELSE 2 END,
+                   CASE WHEN starts_at > $3 THEN starts_at END ASC,
+                   starts_at DESC, id
           LIMIT 1
        ) mp ON true
        LEFT JOIN dues_obligations do2 ON do2.membership_period_id = mp.id

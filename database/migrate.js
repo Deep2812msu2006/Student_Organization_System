@@ -19,7 +19,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import pg from 'pg';
+import { createDatabase } from '../server/config/db.js';
 import { readConfig } from '../server/config/env.js';
 
 const MIGRATIONS_DIR = fileURLToPath(new URL('./migrations', import.meta.url));
@@ -74,14 +74,7 @@ async function main() {
     return;
   }
 
-  const pool = new pg.Pool({
-    connectionString: config.databaseUrl,
-    max: 2,
-    connectionTimeoutMillis: config.connectTimeoutMs,
-    query_timeout: config.queryTimeoutMs,
-    ssl: false,
-  });
-  pool.on('error', () => {}); // suppress idle-client noise during runner
+  const { pool } = createDatabase(config);
 
   try {
     await bootstrap(pool);

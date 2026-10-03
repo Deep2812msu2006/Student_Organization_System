@@ -39,8 +39,8 @@ export async function findUserByEmail(db, normalizedEmail) {
   const { rows } = await db.query(
     `SELECT id, name, email, password_hash AS "passwordHash", created_at AS "createdAt"
        FROM users
-      WHERE lower(email) = $1`,
-    [normalizedEmail]
+      WHERE lower(btrim(email)) = $1`,
+    [normalizedEmail.trim().toLowerCase()]
   );
   return rows[0] ?? null;
 }
@@ -65,7 +65,7 @@ export async function createUser(db, { name, email, passwordHash }) {
     `INSERT INTO users (name, email, password_hash)
      VALUES ($1, $2, $3)
      RETURNING id, name, email, created_at AS "createdAt"`,
-    [name, email, passwordHash]
+    [name.trim(), email.trim().toLowerCase(), passwordHash]
   );
   return rows[0];
 }

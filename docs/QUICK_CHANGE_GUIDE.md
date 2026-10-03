@@ -1,5 +1,16 @@
 # Quick change guide
 
+## Authentication and membership additions
+
+- `@edit:MEMBERSHIP_FORM`: client/src/pages/auth/AuthPage.jsx. Server rules: server/validators/auth.schema.js. Check form errors, signup and login.
+- `@edit:MEMBERSHIP_PROFILE`: client/src/pages/members/MembershipPage.jsx. Check enrollment, reload persistence and benefit status.
+- `@edit:MEMBER_DIRECTORY`: client/src/pages/members/MemberDirectory.jsx. API role enforcement: server/routes/member.routes.js. Check organizer access and member denial.
+- `@edit:ACCOUNT_LAYOUT`: client/src/styles/account.css. Check mobile forms, profile card and directory.
+- `@flow:MEMBER_SIGNUP`: server/services/auth.service.js. User and member role share a transaction; no password hash in HTTP responses.
+- `@rule:ENROLLMENT_ONCE` and `@rule:MEMBER_DISCOUNT`: server/services/member.service.js. Check simultaneous enrollments and disabled pending/expired benefits.
+
+My membership and organizer Members links are active. Remaining business navigation is planned. The older planned-feature list below is superseded for authentication/membership by this section.
+
 Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relative to the repository root and exist now. Search tags have one authoritative implementation location; documentation repeats them for lookup. Change only the relevant source and verify the smallest affected flow.
 
 ## Navbar background/text/hover colors
