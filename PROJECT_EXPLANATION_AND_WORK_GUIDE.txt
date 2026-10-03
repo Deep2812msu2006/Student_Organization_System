@@ -1,0 +1,187 @@
+================================================================================
+STUDENT ORGANIZATION SYSTEM (ODDO) - WORK & INTERVIEW GUIDE FOR OM
+================================================================================
+
+1. PROJECT OVERVIEW (ELEVATOR PITCH)
+--------------------------------------------------------------------------------
+Project Name: Student Organization System (Skyline Student Association / ODDO)
+Purpose: A complete full-stack web application designed for student club 
+operations, ticketing, memberships, merchandise sales, and event check-ins.
+
+Core Modules:
+- Authentication & Sessions:
+  PostgreSQL-backed sessions, role-based access control (member, organizer, 
+  treasurer), secure password hashing (argon2/bcrypt).
+- Membership Management:
+  Online enrollment, dues tracking (active, pending, expired), and member 
+  directory for organizers.
+- Event Ticketing & Capacity:
+  Public event discovery, organizer event creation/updates, ticket generation, 
+  and capacity reservation protected by atomic database locks (FOR UPDATE).
+- Check-in System:
+  Token/QR-based ticket validation with atomic one-time check-in checks to 
+  prevent duplicate entry.
+- Merchandise Store & Ordering:
+  Product catalog, cart management, inventory deduction with deadlock-safe 
+  variant locking (ORDER BY id ASC FOR UPDATE), order lifecycle tracking.
+- Manual Payment Recording:
+  Dedicated dashboard for treasurers/organizers to record offline cash/UPI 
+  payments with idempotency key protection.
+
+Tech Stack:
+- Frontend: React 18, Vite, React Router v6, Context API (AuthContext, 
+  CartContext), Vanilla CSS with centralized design tokens.
+- Backend: Node.js, Express.js REST API, PostgreSQL (pg connection pool), 
+  Joi input validation schemas, Express session middleware.
+
+================================================================================
+2. OM'S SPECIFIC ROLE & WORK RESPONSIBILITIES
+================================================================================
+As defined in docs/TEAM_OWNERSHIP.md:
+- OM owns:
+  1. Frontend (client/src): Entire React UI shell, navigation, page routing, 
+     responsive layouts, CSS token styling, forms, and client state.
+  2. Core Backend APIs (server/): Express routing, controllers, input validation 
+     schemas, and service layer logic for Auth, Membership, Events, and Shop.
+- Teammates:
+  * Deep: Database schemas, SQL migrations (database/migrations), and models.
+  * Dharmik: Supporting APIs, check-in/payment routes, Postman suites, testing.
+
+WHAT TO SAY TO THE COORDINATOR:
+"I work as the full-stack developer handling the React frontend and core 
+Node.js + Express backend services. On the frontend, I built the client 
+application using React, Vite, React Router, and clean CSS variables without 
+heavy third-party component libraries. On the backend, I implemented the REST 
+endpoints, Joi request validators, and business service layer handling 
+authentication, membership flows, events, and merchandise checkout."
+
+================================================================================
+3. FOUR-STEP ACTION PLAN FOR ANY CHANGE REQUEST
+================================================================================
+When the coordinator or team asks you to modify something:
+
+STEP 1: CLASSIFY THE SCOPE
+- UI/Styling only: Colors, layout, typography, responsiveness.
+- Frontend Logic: React component state, forms, API fetch hooks, routing.
+- Backend API/Logic: Endpoint route, validation rule, business logic in service.
+- Full-Stack: Adding a new field from database -> API response -> React screen.
+
+STEP 2: LOCATE THE RIGHT FILE USING TAGS OR PATHS
+(Search tags from docs/QUICK_CHANGE_GUIDE.md using Ctrl+Shift+F):
+- Navbar Colors / Theme:     @edit:NAVBAR_COLORS   -> client/src/styles/tokens.css
+- Global Brand Name/Logo:    @edit:BRAND_NAME      -> client/src/config/site.js
+- Navigation Links:          @edit:NAVBAR_LINKS    -> client/src/config/navigation.js
+- Buttons & Global Styling:  @edit:BUTTON_STYLES   -> client/src/styles/global.css
+- Events List & Cards:       @edit:EVENT_CARD      -> client/src/pages/events/EventsPage.jsx
+- Event Form (Create/Edit):  @edit:EVENT_FORM      -> client/src/pages/events/EventForm.jsx
+- Shop / Product Catalog:    @edit:PRODUCT_CARD    -> client/src/pages/shop/ShopPage.jsx
+- Cart & Checkout UI:        @edit:CART_UI         -> client/src/pages/shop/CartPage.jsx
+- Backend Event Service:     @flow:EVENT_REGISTRATION -> server/services/event.service.js
+- Backend Shop Service:      @flow:ORDER_SUBMISSION   -> server/services/merchandise.service.js
+- Server Routes Mounting:    server/app.js
+
+STEP 3: MAKE THE CHANGE (FOLLOWING ESTABLISHED PATTERNS)
+- Frontend: Use CSS tokens (var(--primary), var(--text-color)) instead of 
+  hardcoding arbitrary hex codes.
+- Backend: Always validate client inputs with Joi schemas in server/validators/ 
+  before passing data to services.
+- Error handling: Keep standard JSON responses { data: ... } or { error: ... }.
+
+STEP 4: VERIFY AND TEST LOCALLY
+- Test backend: 
+  npm test
+  Invoke-RestMethod http://127.0.0.1:5000/api/live
+- Check frontend: 
+  Open http://127.0.0.1:5173 and verify responsiveness and console logs.
+
+================================================================================
+4. REAL CODE MODIFICATION EXAMPLES
+================================================================================
+
+EXAMPLE A: Change Brand Title & Tagline
+File: client/src/config/site.js
+--------------------------------------------------------------------------------
+// Before:
+export const BRAND_NAME = 'Skyline Student Association';
+export const TAGLINE = 'Official student organization platform';
+
+// After:
+export const BRAND_NAME = 'ODDO Student Organization';
+export const TAGLINE = 'Empowering student community, events and merchandise';
+
+
+EXAMPLE B: Change Theme Colors (Navbar & Primary Buttons)
+File: client/src/styles/tokens.css
+--------------------------------------------------------------------------------
+:root {
+  /* Change navbar to dark indigo */
+  --navbar-bg: #1e1b4b;
+  --navbar-text: #ffffff;
+  --navbar-hover-bg: rgba(255, 255, 255, 0.12);
+  
+  /* Change brand primary color */
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+}
+
+
+EXAMPLE C: Add a Minimum Quantity Rule to Cart Checkout
+File: server/validators/merchandise.schema.js
+--------------------------------------------------------------------------------
+// Adjust quantity validation in Joi schema:
+export const orderItemSchema = wrap(Joi.object({
+  variantId: Joi.string().guid().required(),
+  quantity: Joi.number().integer().min(1).max(10).required() // Limit max 10
+}).unknown(false));
+
+================================================================================
+5. SELF-TEST QUESTIONS & ANSWERS (TEST YOURSELF)
+================================================================================
+
+QUESTION 1:
+Where do you change the navigation bar items (labels and URLs)?
+ANSWER:
+In `client/src/config/navigation.js`. The component `Navbar.jsx` imports links 
+from this config file.
+
+QUESTION 2:
+Where are the backend route endpoints registered into Express?
+ANSWER:
+In `server/app.js`. It mounts routes under `/api/v1` such as `eventRouter`, 
+`memberRouter`, `checkinRouter`, and `merchandiseRouter`.
+
+QUESTION 3:
+How does the backend prevent overbooking an event when two users click "Register" 
+at the exact same second?
+ANSWER:
+In `server/services/event.service.js` and `server/model/event.model.js`, it uses 
+a PostgreSQL transaction with a row-level lock (`SELECT ... FOR UPDATE`). 
+Only one transaction can inspect and increment the seat counter at a time, 
+preventing race conditions.
+
+QUESTION 4:
+How does the merchandise checkout avoid deadlocks when customers buy multiple 
+items simultaneously?
+ANSWER:
+In `server/model/merchandise.model.js`, the query locks variant rows sorted 
+by ID in ascending order (`ORDER BY id ASC FOR UPDATE`). Because all concurrent 
+transactions acquire locks in the exact same sequence, deadlocks are avoided.
+
+================================================================================
+6. KEY TERMINAL COMMANDS CHEATSHEET
+================================================================================
+Start both Frontend and Backend:
+npm run dev
+
+Start only Backend API (Port 5000):
+npm run dev:server
+
+Start only Frontend (Port 5173):
+npm run dev:client
+
+Run Automated Tests:
+npm test
+
+Verify API Health:
+Invoke-RestMethod http://127.0.0.1:5000/api/live
+================================================================================

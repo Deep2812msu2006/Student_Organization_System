@@ -2,44 +2,57 @@
  * server/validators/checkin.schema.js — Dharmik owns this file.
  *
  * Request validation schemas for check-in and payment endpoints.
- * Uses Zod, consistent with existing auth.schema.js and event.schema.js.
+ * Uses Joi for schema definition and request validation.
  */
 
-import { z } from 'zod';
+import Joi, { wrap } from './joiHelper.js';
 
 const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 // @edit:CHECKIN_UI — Check-in request body
-export const checkinSchema = z.object({
-  eventId: z.string().regex(uuidRegex, 'Invalid event ID.'),
-  ticketToken: z.string().min(1, 'Admission code is required.').max(200, 'Admission code is too long.'),
-}).strict();
+export const checkinSchema = wrap(Joi.object({
+  eventId: Joi.string().pattern(uuidRegex).required().messages({
+    'string.pattern.base': 'Invalid event ID.',
+    'any.required': 'Invalid event ID.',
+  }),
+  ticketToken: Joi.string().min(1).max(200).required().messages({
+    'string.empty': 'Admission code is required.',
+    'string.min': 'Admission code is required.',
+    'string.max': 'Admission code is too long.',
+    'any.required': 'Admission code is required.',
+  }),
+}).unknown(false));
 
 // @edit:PAYMENT_UI — Manual payment confirmation request body
-export const paymentSchema = z.object({
-  registrationId: z.string().regex(uuidRegex, 'Invalid registration ID.'),
-  amountMinor: z.number().int().min(0).max(100000000),
-  currency: z.enum(['INR', 'USD', 'EUR', 'GBP']),
-  method: z.string().trim().min(1).max(50),
-  externalReference: z.string().trim().min(1).max(200).optional(),
-  notes: z.string().trim().max(500).default(''),
-}).strict();
+export const paymentSchema = wrap(Joi.object({
+  registrationId: Joi.string().pattern(uuidRegex).required().messages({
+    'string.pattern.base': 'Invalid registration ID.',
+    'any.required': 'Invalid registration ID.',
+  }),
+  amountMinor: Joi.number().integer().min(0).max(100000000).required(),
+  currency: Joi.string().valid('INR', 'USD', 'EUR', 'GBP').required(),
+  method: Joi.string().trim().min(1).max(50).required(),
+  externalReference: Joi.string().trim().min(1).max(200).optional(),
+  notes: Joi.string().trim().max(500).default('').allow(''),
+}).unknown(false));
 
 // Idempotency key for payment requests (same format as event bookings)
-export const paymentIdempotencySchema = z.string().min(16).max(100).regex(/^[a-zA-Z0-9_-]+$/);
+export const paymentIdempotencySchema = wrap(Joi.string().min(16).max(100).pattern(/^[a-zA-Z0-9_-]+$/).required());
 
 // @edit:MERCHANDISE_PAYMENT_UI — Manual merchandise order payment confirmation request body
-export const merchandisePaymentSchema = z.object({
-  orderId: z.string().regex(uuidRegex, 'Invalid order ID.'),
-  amountMinor: z.number().int().min(0).max(100000000),
-  currency: z.enum(['INR', 'USD', 'EUR', 'GBP']),
-  method: z.string().trim().min(1).max(50),
-  externalReference: z.string().trim().min(1).max(200).optional(),
-  notes: z.string().trim().max(500).default(''),
-}).strict();
+export const merchandisePaymentSchema = wrap(Joi.object({
+  orderId: Joi.string().pattern(uuidRegex).required().messages({
+    'string.pattern.base': 'Invalid order ID.',
+    'any.required': 'Invalid order ID.',
+  }),
+  amountMinor: Joi.number().integer().min(0).max(100000000).required(),
+  currency: Joi.string().valid('INR', 'USD', 'EUR', 'GBP').required(),
+  method: Joi.string().trim().min(1).max(50).required(),
+  externalReference: Joi.string().trim().min(1).max(200).optional(),
+  notes: Joi.string().trim().max(500).default('').allow(''),
+}).unknown(false));
 
-export const pendingOrderQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(50).default(20),
-}).strict();
-
+export const pendingOrderQuerySchema = wrap(Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  pageSize: Joi.number().integer().min(1).max(50).default(20),
+}).unknown(false));
