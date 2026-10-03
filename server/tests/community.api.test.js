@@ -59,6 +59,14 @@ test('community integration: authorization, announcements, consent, reminders, t
  await org.call('/staff/mail/preview','POST',{});
  assert.equal((await pool.query('SELECT status FROM message_outbox WHERE user_id=$1 AND source_key=$2',[member.id,'announcement:'+a.data.id])).rows[0].status,'suppressed');
  assert.equal((await member.call('/staff/mail')).status,403);
+ const updated=await org.call('/announcements/'+a.data.id,'PUT',{title:'Updated Title',body:'Updated message content'});
+ assert.equal(updated.status,200);
+ assert.equal(updated.data.title,'Updated Title');
+ assert.equal((await member.call('/announcements/'+a.data.id,'PUT',{title:'Hacked'})).status,403);
+ assert.equal((await member.call('/announcements/'+a.data.id,'DELETE')).status,403);
+ const del=await org.call('/announcements/'+a.data.id,'DELETE');
+ assert.equal(del.status,200);
+ assert.ok(!(await org.call('/announcements')).data.some(x=>x.id===a.data.id));
  });
  await t.test('event confirmation retries are atomic and reject changed payloads',async()=>{
  const event=await createEvent(pool,{title:'Payment race',venue:'Hall',startsAt:new Date(Date.now()+86400000).toISOString(),endsAt:new Date(Date.now()+172800000).toISOString(),capacity:10,memberPriceMinor:500,publicPriceMinor:1000,currency:'INR',status:'published',createdBy:org.id});events.push(event.id);
