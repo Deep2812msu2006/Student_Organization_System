@@ -4,12 +4,14 @@ import { useCart } from '../../context/CartContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../services/api.js';
 import { money } from '../../utils/format.js';
+import { triggerRazorpayPayment } from '../../utils/razorpay.js';
 
 export default function CartPage() {
   const { items, itemCount, totalEstimatedMinor, currency, updateQuantity, removeFromCart, clearCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const [paymentMethod, setPaymentMethod] = useState('upi'); // 'upi' or 'cash'
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [stockConflict, setStockConflict] = useState(null);
@@ -78,14 +80,51 @@ export default function CartPage() {
         body: { items: payloadItems },
       });
 
-      clearCart();
-      navigate(`/orders/${res.data.id}?placed=true`);
+      const order = res.data;
+
+      if (paymentMethod === 'cash') {
+        clearCart();
+        navigate(`/orders/${order.id}?placed=true&method=cash`);
+        return;
+      }
+
+      // UPI checkout via Razorpay test gateway
+      const rzpRes = await api(`/orders/${order.id}/razorpay/order`, {
+        method: 'POST',
+      });
+
+      await triggerRazorpayPayment({
+        orderId: order.id,
+        razorpayOrderId: rzpRes.data.razorpayOrderId,
+        amountMinor: rzpRes.data.amountMinor,
+        currency: rzpRes.data.currency,
+        keyId: rzpRes.data.keyId,
+        user,
+        onSuccess: async (rzpPayload) => {
+          try {
+            await api(`/orders/${order.id}/razorpay/verify`, {
+              method: 'POST',
+              body: rzpPayload,
+            });
+            clearCart();
+            // Direct buy success — status is directly Paid without admin intervention
+            navigate(`/orders/${order.id}?placed=true&paid=true&direct=true`);
+          } catch (verifyErr) {
+            clearCart();
+            setError(verifyErr.message || 'Payment verification failed.');
+            navigate(`/orders/${order.id}?placed=true`);
+          }
+        },
+        onDismiss: () => {
+          clearCart();
+          navigate(`/orders/${order.id}?placed=true`);
+        },
+      });
     } catch (err) {
       setError(err.message || 'Failed to place order. Please try again.');
       if (err.status === 409) {
         setStockConflict(err.message);
       }
-    } finally {
       setSubmitting(false);
     }
   }
@@ -221,11 +260,47 @@ export default function CartPage() {
             <span>{money(finalTotalMinor, currency)}</span>
           </div>
 
-          <div className="story-note" style={{ fontSize: '0.85rem' }}>
-            <strong>Payment & Order Flow:</strong>
-            <p style={{ margin: 0, marginTop: 'var(--space-1)' }}>
-              Eligible membership discounts are calculated by the server at checkout; the cart shows an estimate. Submitted orders are created in <em>Pending (Awaiting Payment)</em> status.
-              Payment confirmation is recorded by association staff.
+          {/* Payment Method Selector (Only UPI & Cash) */}
+          <div style={{ marginBlock: 'var(--space-4)', padding: 'var(--space-3)', background: 'var(--color-subtle, #f6f8f7)', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+            <span style={{ fontSize: '0.84rem', fontWeight: 700, display: 'block', marginBottom: 'var(--space-2)' }}>
+              Choose Payment Method:
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('upi')}
+                style={{
+                  textAlign: 'left',
+                  padding: 'var(--space-2) var(--space-3)',
+                  background: paymentMethod === 'upi' ? '#f0fdf4' : 'var(--color-surface, #fff)',
+                  borderRadius: '6px',
+                  border: paymentMethod === 'upi' ? '2px solid #16a34a' : '1px solid var(--color-border)',
+                  cursor: 'pointer',
+                  fontSize: '0.82rem',
+                }}
+              >
+                <strong>📱 UPI</strong>
+                <p className="muted" style={{ margin: '2px 0 0', fontSize: '0.72rem' }}>Instant Razorpay</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('cash')}
+                style={{
+                  textAlign: 'left',
+                  padding: 'var(--space-2) var(--space-3)',
+                  background: paymentMethod === 'cash' ? '#fefce8' : 'var(--color-surface, #fff)',
+                  borderRadius: '6px',
+                  border: paymentMethod === 'cash' ? '2px solid #ca8a04' : '1px solid var(--color-border)',
+                  cursor: 'pointer',
+                  fontSize: '0.82rem',
+                }}
+              >
+                <strong>💵 Cash</strong>
+                <p className="muted" style={{ margin: '2px 0 0', fontSize: '0.72rem' }}>Pay at Desk</p>
+              </button>
+            </div>
+            <p className="muted" style={{ fontSize: '0.74rem', margin: 'var(--space-2) 0 0' }}>
+              {paymentMethod === 'upi' ? '✓ Auto-verified as Paid immediately on payment.' : '✓ Reserved immediately. Pay at counter.'}
             </p>
           </div>
 
@@ -233,10 +308,24 @@ export default function CartPage() {
             <button
               className="button full-width"
               type="button"
+              style={{
+                background: paymentMethod === 'upi' ? '#0f766e' : 'var(--color-primary-dark, #163c34)',
+                color: '#fff',
+                fontSize: '1rem',
+                fontWeight: 700,
+                padding: 'var(--space-3)',
+                boxShadow: '0 4px 12px rgba(15, 118, 110, 0.25)',
+              }}
               disabled={submitting || items.length === 0}
               onClick={handleCheckout}
             >
-              {submitting ? 'Placing Order…' : 'Place Order'}
+              {submitting ? (
+                paymentMethod === 'upi' ? '⏳ Opening Razorpay…' : 'Placing Order…'
+              ) : (
+                paymentMethod === 'upi'
+                  ? `⚡ Buy Cart / Pay · ${money(totalEstimatedMinor, currency)}`
+                  : `Place Order · ${money(totalEstimatedMinor, currency)} (Cash)`
+              )}
             </button>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

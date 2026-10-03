@@ -2,15 +2,21 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../services/api.js';
 import { money, date } from '../../utils/format.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { triggerRazorpayPayment } from '../../utils/razorpay.js';
 
 export default function OrderDetailPage() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const justPlaced = searchParams.get('placed') === 'true';
+  const justPaid = searchParams.get('paid') === 'true';
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [payingWithUpi, setPayingWithUpi] = useState(false);
+  const [paySuccessMsg, setPaySuccessMsg] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
@@ -51,6 +57,47 @@ export default function OrderDetailPage() {
       setError(err.message || 'Failed to cancel order.');
     } finally {
       setCancelling(false);
+    }
+  }
+
+  async function handlePayWithUpi() {
+    if (!order || order.status !== 'pending') return;
+    setPayingWithUpi(true);
+    setError('');
+
+    try {
+      const rzpRes = await api(`/orders/${order.id}/razorpay/order`, {
+        method: 'POST',
+      });
+
+      await triggerRazorpayPayment({
+        orderId: order.id,
+        razorpayOrderId: rzpRes.data.razorpayOrderId,
+        amountMinor: rzpRes.data.amountMinor,
+        currency: rzpRes.data.currency,
+        keyId: rzpRes.data.keyId,
+        user,
+        onSuccess: async (rzpPayload) => {
+          try {
+            const verifyRes = await api(`/orders/${order.id}/razorpay/verify`, {
+              method: 'POST',
+              body: rzpPayload,
+            });
+            setOrder(verifyRes.data);
+            setPaySuccessMsg('Payment verified successfully via Razorpay UPI! Your order is now confirmed as Paid.');
+          } catch (vErr) {
+            setError(vErr.message || 'Payment verification failed.');
+          } finally {
+            setPayingWithUpi(false);
+          }
+        },
+        onDismiss: () => {
+          setPayingWithUpi(false);
+        },
+      });
+    } catch (err) {
+      setError(err.message || 'Failed to start UPI payment.');
+      setPayingWithUpi(false);
     }
   }
 
@@ -96,9 +143,21 @@ export default function OrderDetailPage() {
         ← Back to My Orders
       </Link>
 
-      {justPlaced && (
-        <div className="status-badge paid" style={{ width: '100%', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', borderRadius: '8px' }}>
-          <strong>Order placed successfully!</strong> Items have been reserved in your name.
+      {justPaid && (
+        <div className="status-badge paid" style={{ width: '100%', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', borderRadius: '8px', background: '#dcfce7', color: '#14532d', border: '1px solid #86efac' }}>
+          <strong>🎉 Direct Purchase Complete!</strong> Payment was verified via Razorpay UPI. Order confirmed as Paid directly without any admin action.
+        </div>
+      )}
+
+      {paySuccessMsg && (
+        <div className="status-badge paid" style={{ width: '100%', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', borderRadius: '8px', background: '#dcfce7', color: '#14532d', border: '1px solid #86efac' }}>
+          <strong>🎉 {paySuccessMsg}</strong>
+        </div>
+      )}
+
+      {justPlaced && !justPaid && (
+        <div className="status-badge pending" style={{ width: '100%', padding: 'var(--space-4)', marginBottom: 'var(--space-6)', borderRadius: '8px' }}>
+          <strong>Order placed successfully!</strong> Items have been reserved in your name. You can pay with UPI directly below or pay cash at the club desk.
         </div>
       )}
 
@@ -132,6 +191,33 @@ export default function OrderDetailPage() {
             </p>
           )}
         </div>
+
+        {/* Instant UPI Payment Box for Pending Orders */}
+        {order.status === 'pending' && (
+          <div style={{ padding: 'var(--space-4)', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <span aria-hidden="true" style={{ fontSize: '1.2rem' }}>📱</span>
+                <strong style={{ color: '#166534', fontSize: '1rem' }}>Pay Instantly with UPI</strong>
+                <span style={{ fontSize: '0.72rem', background: '#16a34a', color: '#fff', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                  NO ADMIN NEEDED
+                </span>
+              </div>
+              <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#15803d' }}>
+                Complete payment directly via GPay / PhonePe / Paytm test mode. Status updates to <strong>PAID</strong> immediately!
+              </p>
+            </div>
+            <button
+              type="button"
+              className="button"
+              style={{ background: '#0f766e', color: '#fff', fontWeight: 700, padding: 'var(--space-3) var(--space-5)', boxShadow: '0 4px 12px rgba(15, 118, 110, 0.25)' }}
+              disabled={payingWithUpi}
+              onClick={handlePayWithUpi}
+            >
+              {payingWithUpi ? '⏳ Opening Razorpay…' : `⚡ Pay ${money(order.totalMinor, order.currency)} via UPI`}
+            </button>
+          </div>
+        )}
 
         {/* Itemized Snapshot Table */}
         <div>
