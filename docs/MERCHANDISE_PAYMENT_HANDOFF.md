@@ -246,7 +246,7 @@ npm run migrate
 npm run migrate:status
 
 # Run model test suite (including all 9 merchandise payment tests)
-$env:NODE_TEST_DATABASE_URL="postgresql://club_user:Deep%401511@127.0.0.1:5432/student_org_test"
+$env:NODE_TEST_DATABASE_URL="postgresql://club_user:<password>@127.0.0.1:5432/student_org_test"
 npm run test:models
 
 # Run full project test suite

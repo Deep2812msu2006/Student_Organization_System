@@ -86,7 +86,9 @@ export default function OrderDetailPage() {
     }
   }
 
-  const canCancel = order.status === 'pending' || order.status === 'paid';
+  // @rule:PENDING_ONLY_CANCEL — Customer cancellation is only allowed while order is pending.
+  // Paid orders cannot be cancelled through this prototype.
+  const canCancel = order.status === 'pending';
 
   return (
     <section className="container shop-page">
@@ -219,6 +221,15 @@ export default function OrderDetailPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Paid Order Cancellation Policy Notice */}
+        {order.status === 'paid' && (
+          <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-4)', marginTop: 'var(--space-4)' }}>
+            <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+              ℹ️ <strong>Cancellation Policy:</strong> Paid orders cannot be cancelled through this customer prototype. If you need to request adjustments, please speak directly with organization staff or the treasurer.
+            </p>
           </div>
         )}
       </div>
