@@ -12,8 +12,12 @@ export async function detail(pool,id,userId,organizer=false){
   const event=await model.getEventById(pool,id);
   if(!event||(!organizer&&event.status!=='published'))throw new HttpError(404,'EVENT_NOT_FOUND','Event not found.');
   const profile=userId?await getMemberProfile(pool,userId,new Date()):null;
+  const userRegistration=userId?(await pool.query(
+    "SELECT id, status, checked_in_at AS \"checkedInAt\" FROM registrations WHERE event_id=$1 AND user_id=$2 AND status != 'cancelled'",
+    [id, userId]
+  )).rows[0] ?? null : null;
   // @rule:EVENT_MEMBER_PRICE — valid paid membership selects the event member price; no stacked discount.
-  return {...event,eligiblePriceMinor:profile?.membershipStatus==='active'?event.memberPriceMinor:event.publicPriceMinor,
+  return {...event,userRegistration,eligiblePriceMinor:profile?.membershipStatus==='active'?event.memberPriceMinor:event.publicPriceMinor,
     memberPriceEligible:profile?.membershipStatus==='active',bookingOpen:event.status==='published'&&new Date(event.startsAt)>new Date()&&event.seatsAvailable>0};
 }
 export async function editEvent(pool,id,patch){
