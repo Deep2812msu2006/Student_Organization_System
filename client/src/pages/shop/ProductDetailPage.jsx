@@ -187,12 +187,23 @@ export default function ProductDetailPage() {
       )}
 
       <div className="product-detail-grid">
-        <div className={`product-detail-hero ${productImg ? 'has-image' : ''}`} aria-hidden="true">
-          {productImg ? (
-            <img src={productImg} alt={product.name} className="product-detail-img" />
-          ) : (
-            product.category === 'apparel' ? '👕' : product.category === 'accessories' ? '🎒' : '✨'
-          )}
+        <div
+          className="product-detail-hero"
+          style={{
+            overflow: 'hidden',
+            padding: 0,
+            background: '#f8fafc',
+            borderRadius: '1rem',
+            border: '1px solid var(--color-border)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            height: '420px',
+          }}
+        >
+          <img
+            src={getProductImage(product)}
+            alt={product.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
         </div>
 
         <div className="product-detail-info">
