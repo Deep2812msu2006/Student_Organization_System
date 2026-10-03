@@ -33,6 +33,7 @@
 import * as eventModel from '../model/event.model.js';
 import * as paymentModel from '../model/payment.model.js';
 import * as merchModel from '../model/merchandise.model.js';
+import * as memberModel from '../model/member.model.js';
 import { transaction } from '../utils/transaction.js';
 import { HttpError } from '../utils/httpError.js';
 import { scopedKey } from '../utils/ticketToken.js';
@@ -426,3 +427,280 @@ export async function listPendingMerchandiseOrders(pool, { page = 1, pageSize = 
     pageSize: result.pageSize,
   };
 }
+
+// ─── Membership Dues Payment Confirmation ───────────────────────────────────
+
+function matchesDuesPaymentPayload(existing, expected) {
+  const normRef = expected.externalReference || null;
+  const existRef = existing.externalReference || null;
+  const normNotes = expected.notes || '';
+  const existNotes = existing.notes || '';
+  return (
+    existing.duesObligationId === expected.duesObligationId &&
+    existing.amountMinor === expected.amountMinor &&
+    existing.currency === expected.currency &&
+    existing.method === expected.method &&
+    existRef === normRef &&
+    existNotes === normNotes
+  );
+}
+
+async function getDuesObligationDetails(db, duesObligationId) {
+  const { rows } = await db.query(
+    `SELECT
+       d.id,
+       d.membership_period_id AS "membershipPeriodId",
+       d.amount_minor AS "amountMinor",
+       d.currency,
+       d.status,
+       d.paid_at AS "paidAt",
+       d.payment_ref AS "paymentRef",
+       mp.user_id AS "userId",
+       mp.starts_at AS "startsAt",
+       mp.expires_at AS "expiresAt",
+       u.name AS "userName",
+       u.email AS "userEmail"
+     FROM dues_obligations d
+     JOIN membership_periods mp ON mp.id = d.membership_period_id
+     JOIN users u ON u.id = mp.user_id
+     WHERE d.id = $1`,
+    [duesObligationId]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Record manual payment received for a membership dues obligation.
+ * Refreshes evaluated membership status upon confirmation.
+ *
+ * @flow:DUES_PAYMENT — Staff records manual payment received:
+ *  1. Scopes idempotency key to staff user.
+ *  2. Pre-checks existing payment replay.
+ *  3. In transaction:
+ *     a. Serializes on scoped key via advisory lock.
+ *     b. Rechecks in-tx replay.
+ *     c. Locks obligation row (SELECT ... FOR UPDATE).
+ *     d. Validates pending status, amount, and currency.
+ *     e. Inserts durable payment_records row (@rule:PAYMENT_TARGET_MUTEX).
+ *     f. Transitions obligation pending -> paid (@rule:DUES_PAYMENT_ONCE).
+ *     g. Evaluates refreshed member profile (@rule:MEMBERSHIP_VALIDITY).
+ *
+ * @param {import('pg').Pool} pool
+ * @param {{
+ *   duesObligationId: string,
+ *   amountMinor: number,
+ *   currency: string,
+ *   method: string,
+ *   externalReference?: string|null,
+ *   notes?: string,
+ *   idempotencyKey: string
+ * }} params
+ * @param {string} staffId - UUID of authorized staff member
+ * @returns {Promise<{ payment: object, duesObligation: object, memberProfile: object, replayed: boolean }>}
+ */
+export async function confirmDuesPayment(pool, params, staffId) {
+  const {
+    duesObligationId,
+    amountMinor,
+    currency,
+    method,
+    externalReference = null,
+    notes = '',
+    idempotencyKey,
+  } = params;
+
+  const scopedIdempKey = scopedKey(staffId, idempotencyKey);
+
+  // 1. Pre-transaction idempotency replay check
+  const existingPayment = await paymentModel.findPaymentByIdempotencyKey(pool, scopedIdempKey);
+  if (existingPayment) {
+    if (existingPayment.duesObligationId !== duesObligationId) {
+      throw new HttpError(409, 'IDEMPOTENCY_CONFLICT', 'This idempotency key was already used for a different dues obligation.');
+    }
+    if (!matchesDuesPaymentPayload(existingPayment, { duesObligationId, amountMinor, currency, method, externalReference, notes })) {
+      throw new HttpError(409, 'IDEMPOTENCY_PAYLOAD_MISMATCH', 'An identical idempotency key was reused with different payment parameters.');
+    }
+    const obligation = await getDuesObligationDetails(pool, duesObligationId);
+    const memberProfile = obligation ? await memberModel.getMemberProfile(pool, obligation.userId, new Date()) : null;
+    return {
+      payment: safePayment(existingPayment),
+      duesObligation: obligation,
+      memberProfile,
+      replayed: true,
+    };
+  }
+
+  // 2. Transaction
+  try {
+    const result = await transaction(pool, async (client) => {
+      // 2a. Advisory lock on scoped idempotency key
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [scopedIdempKey]);
+
+      // 2b. Recheck inside transaction
+      const existingInTx = await paymentModel.findPaymentByIdempotencyKey(client, scopedIdempKey);
+      if (existingInTx) {
+        if (existingInTx.duesObligationId !== duesObligationId) {
+          throw new HttpError(409, 'IDEMPOTENCY_CONFLICT', 'This idempotency key was already used for a different dues obligation.');
+        }
+        if (!matchesDuesPaymentPayload(existingInTx, { duesObligationId, amountMinor, currency, method, externalReference, notes })) {
+          throw new HttpError(409, 'IDEMPOTENCY_PAYLOAD_MISMATCH', 'An identical idempotency key was reused with different payment parameters.');
+        }
+        const obligation = await getDuesObligationDetails(client, duesObligationId);
+        const memberProfile = obligation ? await memberModel.getMemberProfile(client, obligation.userId, new Date()) : null;
+        return {
+          payment: safePayment(existingInTx),
+          duesObligation: obligation,
+          memberProfile,
+          replayed: true,
+        };
+      }
+
+      // 2c. Lock dues obligation
+      const lockedObligation = await paymentModel.lockDuesObligationForPayment(client, duesObligationId);
+      if (!lockedObligation) {
+        throw new HttpError(404, 'DUES_OBLIGATION_NOT_FOUND', 'Dues obligation not found.');
+      }
+      if (lockedObligation.status === 'paid') {
+        const duesPayment = await paymentModel.findPaymentByDuesObligation(client, duesObligationId);
+        if (duesPayment && duesPayment.idempotencyKey === scopedIdempKey) {
+          if (!matchesDuesPaymentPayload(duesPayment, { duesObligationId, amountMinor, currency, method, externalReference, notes })) {
+            throw new HttpError(409, 'IDEMPOTENCY_PAYLOAD_MISMATCH', 'An identical idempotency key was reused with different payment parameters.');
+          }
+          const memberProfile = await memberModel.getMemberProfile(client, lockedObligation.userId, new Date());
+          return {
+            payment: safePayment(duesPayment),
+            duesObligation: lockedObligation,
+            memberProfile,
+            replayed: true,
+          };
+        }
+        throw new HttpError(409, 'ALREADY_PAID', 'This dues obligation has already been paid.');
+      }
+      if (lockedObligation.status === 'waived') {
+        throw new HttpError(409, 'DUES_WAIVED', 'This dues obligation was waived and cannot receive payment.');
+      }
+      if (lockedObligation.status !== 'pending') {
+        throw new HttpError(409, 'INVALID_STATUS', 'Dues obligation is no longer awaiting payment.');
+      }
+
+      // 2d. Validate amount and currency
+      if (amountMinor !== lockedObligation.amountMinor) {
+        throw new HttpError(400, 'AMOUNT_MISMATCH', `Payment amount (${amountMinor}) does not match dues obligation (${lockedObligation.amountMinor}).`);
+      }
+      if (currency !== lockedObligation.currency) {
+        throw new HttpError(400, 'CURRENCY_MISMATCH', `Currency (${currency}) does not match dues obligation currency (${lockedObligation.currency}).`);
+      }
+
+      // 2e. Insert durable payment evidence
+      const payment = await paymentModel.insertPaymentRecord(client, {
+        duesObligationId,
+        amountMinor,
+        currency,
+        method,
+        externalReference,
+        notes,
+        recordedBy: staffId,
+        idempotencyKey: scopedIdempKey,
+      });
+
+      // 2f. Transition pending -> paid
+      const confirmedObligation = await paymentModel.confirmDuesPayment(client, {
+        duesObligationId,
+        paymentRef: externalReference || method,
+        paidAt: new Date().toISOString(),
+      });
+      if (!confirmedObligation) {
+        throw new HttpError(409, 'ALREADY_PAID', 'Dues obligation was confirmed by another process.');
+      }
+
+      // 2g. Refreshed membership status evaluated using existing period/benefit rules
+      const memberProfile = await memberModel.getMemberProfile(client, lockedObligation.userId, new Date());
+
+      return {
+        payment: safePayment(payment),
+        duesObligation: confirmedObligation,
+        memberProfile,
+        replayed: false,
+      };
+    });
+
+    return result;
+  } catch (error) {
+    if (error.code === '23505') {
+      if (error.constraint === 'payment_records_unique_dues_obligation_idx') {
+        throw new HttpError(409, 'ALREADY_PAID', 'This dues obligation has already been paid.');
+      }
+      if (error.constraint === 'payment_records_idempotency_key_key') {
+        const existing = await paymentModel.findPaymentByIdempotencyKey(pool, scopedIdempKey);
+        if (existing) {
+          if (existing.duesObligationId !== duesObligationId) {
+            throw new HttpError(409, 'IDEMPOTENCY_CONFLICT', 'This idempotency key was already used for a different dues obligation.');
+          }
+          if (!matchesDuesPaymentPayload(existing, { duesObligationId, amountMinor, currency, method, externalReference, notes })) {
+            throw new HttpError(409, 'IDEMPOTENCY_PAYLOAD_MISMATCH', 'An identical idempotency key was reused with different payment parameters.');
+          }
+          const obligation = await getDuesObligationDetails(pool, duesObligationId);
+          const memberProfile = obligation ? await memberModel.getMemberProfile(pool, obligation.userId, new Date()) : null;
+          return {
+            payment: safePayment(existing),
+            duesObligation: obligation,
+            memberProfile,
+            replayed: true,
+          };
+        }
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Waive a pending dues obligation without recording money collected.
+ * Refreshes membership profile.
+ *
+ * @param {import('pg').Pool} pool
+ * @param {string} duesObligationId
+ * @param {string} [notes]
+ * @param {string} staffId
+ * @returns {Promise<{ duesObligation: object, memberProfile: object }>}
+ */
+export async function waiveDues(pool, duesObligationId, notes = '', _staffId) {
+  return transaction(pool, async (client) => {
+    const locked = await paymentModel.lockDuesObligationForPayment(client, duesObligationId);
+    if (!locked) {
+      throw new HttpError(404, 'DUES_OBLIGATION_NOT_FOUND', 'Dues obligation not found.');
+    }
+    if (locked.status === 'paid') {
+      throw new HttpError(409, 'ALREADY_PAID', 'Cannot waive an obligation that has already been paid.');
+    }
+    if (locked.status === 'waived') {
+      throw new HttpError(409, 'DUES_WAIVED', 'This dues obligation has already been waived.');
+    }
+    if (locked.status !== 'pending') {
+      throw new HttpError(409, 'INVALID_STATUS', 'Only pending dues obligations can be waived.');
+    }
+
+    const waived = await paymentModel.waiveDuesObligation(client, { duesObligationId, notes });
+    if (!waived) {
+      throw new HttpError(409, 'ALREADY_PROCESSED', 'Obligation could not be waived in its current state.');
+    }
+
+    const memberProfile = await memberModel.getMemberProfile(client, locked.userId, new Date());
+    return {
+      duesObligation: waived,
+      memberProfile,
+    };
+  });
+}
+
+/**
+ * List pending dues obligations for authorized staff (treasurer view).
+ *
+ * @param {import('pg').Pool} pool
+ * @param {{ page?: number, pageSize?: number }} [pagination]
+ * @returns {Promise<{ rows: Array<object>, total: number, page: number, pageSize: number }>}
+ */
+export async function listPendingDues(pool, { page = 1, pageSize = 20 } = {}) {
+  return paymentModel.listPendingDuesObligations(pool, { page, pageSize });
+}
+

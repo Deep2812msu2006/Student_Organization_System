@@ -213,7 +213,16 @@ Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relativ
 - Model: `server/model/finance.model.js`, `getFinancialSummary`.
 - Invariant: Parameterized aggregation of durable payment records (dues, event tickets, merchandise orders) and reimbursed expenses. Currencies are strictly separated and never mixed. Distinguishes approved unpaid expenses (liabilities) and uncollected dues (pending vs. waived). Net cash movement (`totalReceipts - reimbursedExpenses`) is documented as transactional flow, not an audited bank balance.
 
+## Membership Dues, Expenses, and Finance APIs (implemented)
+
+- `@flow:DUES_PAYMENT`: `server/services/payment.service.js`, `server/routes/finance.routes.js`. Staff payment recording for membership obligations (`POST /payments/dues/manual`), idempotent replays, amount/currency validation, durable payment records (`payment_records` linking `dues_obligation_id`), and live membership status refresh (`pending` -> `active`).
+- `@flow:EXPENSE_SUBMISSION`: `server/services/expense.service.js`, `server/routes/finance.routes.js`. Volunteer expense submission (`POST /expenses`), private receipt upload (`POST /expenses/receipts`), and owner-scoped history (`GET /expenses`).
+- `@rule:EXPENSE_NO_SELF_APPROVAL`: `server/services/expense.service.js`. Dual-control accounting guard preventing submitters from reviewing, approving, or reimbursing their own expense claims (HTTP 403 `CANNOT_APPROVE_OWN_EXPENSE` / `CANNOT_REIMBURSE_OWN_EXPENSE`).
+- `@flow:EXPENSE_REIMBURSEMENT`: `server/services/expense.service.js`. Authorized reimbursement recording (`POST /expenses/:id/reimburse`) with `reimbursement_idempotency_key` and audit reference.
+- `@flow:FINANCIAL_SUMMARY_API`: `server/services/finance.service.js`, `server/routes/finance.routes.js`. Parameterized reporting endpoint (`GET /finance/summary`) returning separated revenue streams, disbursements, liabilities, and net recorded movement per currency.
+
 ## Planned features — not yet implemented
 
-Frontend screens and API endpoints for dues collection, expense submission/approval, and treasurer reporting are assigned to Dharmik (APIs) and Om (UI). Use docs/DUES_FINANCE_DATABASE_HANDOFF.md to coordinate implementation.
+Frontend screens for dues collection, volunteer expense submission/approval, and treasurer reporting dashboard are assigned to Om. Use docs/DUES_FINANCE_API_HANDOFF.md to coordinate implementation.
+
 
