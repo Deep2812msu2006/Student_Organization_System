@@ -65,6 +65,7 @@ export async function getMemberProfile(db, userId, at) {
        mp.expires_at       AS "expiresAt",
        mp.dues_amount_minor AS "duesAmountMinor",
        mp.currency         AS "currency",
+       do2.id              AS "duesObligationId",
        do2.status          AS "duesStatus",
        -- @rule:MEMBERSHIP_VALIDITY: active iff all three conditions hold.
        CASE

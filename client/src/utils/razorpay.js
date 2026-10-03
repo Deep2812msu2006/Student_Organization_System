@@ -36,6 +36,8 @@ export async function triggerRazorpayPayment({
   currency = 'INR',
   keyId,
   user,
+  description,
+  notes,
   onSuccess,
   onDismiss,
 }) {
@@ -49,12 +51,13 @@ export async function triggerRazorpayPayment({
     throw new Error('Razorpay Key ID is not configured.');
   }
 
+  const defaultDesc = orderId ? `Order #${orderId.slice(0, 8)} Payment` : 'Payment';
   const options = {
     key: effectiveKey,
     amount: amountMinor,
     currency,
     name: 'Skyline Student Association',
-    description: `Order #${orderId.slice(0, 8)} Payment`,
+    description: description || defaultDesc,
     image: '/logo.svg',
     order_id: razorpayOrderId,
     prefill: {
@@ -62,7 +65,8 @@ export async function triggerRazorpayPayment({
       email: user?.email || '',
     },
     notes: {
-      orderId,
+      ...(orderId ? { orderId } : {}),
+      ...(notes || {}),
     },
     theme: {
       color: '#163c34',
