@@ -1,0 +1,25 @@
+{
+  "info": {
+    "name": "Student Organization — Foundation",
+    "description": "Only foundation routes exist. Set baseUrl to your API; health requires PostgreSQL. No credentials are stored here.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "baseUrl", "value": "http://127.0.0.1:5000" }],
+  "item": [
+    {
+      "name": "Process liveness (200)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/live" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('API is live', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.api).to.eql('available'); });"] } }]
+    },
+    {
+      "name": "Database readiness (200 when configured and reachable)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/health" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('PostgreSQL is connected', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.database).to.eql('connected'); });"] } }]
+    },
+    {
+      "name": "Planned business route is not implemented (404)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/members" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('No placeholder business success', () => { pm.response.to.have.status(404); pm.expect(pm.response.json().error.code).to.eql('NOT_FOUND'); });"] } }]
+    }
+  ]
+}
