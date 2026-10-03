@@ -49,6 +49,7 @@ export async function listPublishedProducts(db, { page = 1, pageSize = 20, categ
        p.name,
        p.description,
        p.category,
+       p.image_url AS "imageUrl",
        p.is_published AS "isPublished",
        p.created_at AS "createdAt",
        COALESCE(
@@ -98,6 +99,7 @@ export async function getProductById(db, productId) {
        p.name,
        p.description,
        p.category,
+       p.image_url AS "imageUrl",
        p.is_published AS "isPublished",
        p.created_at AS "createdAt",
        COALESCE(

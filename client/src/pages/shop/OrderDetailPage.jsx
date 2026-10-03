@@ -4,6 +4,7 @@ import { api } from '../../services/api.js';
 import { money, date } from '../../utils/format.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { triggerRazorpayPayment } from '../../utils/razorpay.js';
+import { getProductImage } from '../../utils/productImages.js';
 
 export default function OrderDetailPage() {
   const { id } = useParams();
@@ -233,15 +234,23 @@ export default function OrderDetailPage() {
               </tr>
             </thead>
             <tbody>
-              {(order.items || []).map(item => (
-                <tr key={item.id}>
-                  <td style={{ fontWeight: 600 }}>{item.productName}</td>
-                  <td>{item.variantName}</td>
-                  <td>{money(item.unitPriceMinor, order.currency)}</td>
-                  <td>{item.quantity}</td>
-                  <td style={{ fontWeight: 600 }}>{money(item.totalMinor, order.currency)}</td>
-                </tr>
-              ))}
+              {(order.items || []).map(item => {
+                const itemImg = getProductImage({ name: item.productName });
+                return (
+                  <tr key={item.id}>
+                    <td style={{ fontWeight: 600 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                        {itemImg && <img src={itemImg} alt="" className="cart-item-thumb" />}
+                        <span>{item.productName}</span>
+                      </div>
+                    </td>
+                    <td>{item.variantName}</td>
+                    <td>{money(item.unitPriceMinor, order.currency)}</td>
+                    <td>{item.quantity}</td>
+                    <td style={{ fontWeight: 600 }}>{money(item.totalMinor, order.currency)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

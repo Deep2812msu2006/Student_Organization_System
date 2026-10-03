@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../services/api.js';
 import { money } from '../../utils/format.js';
 import { triggerRazorpayPayment } from '../../utils/razorpay.js';
+import { getProductImage } from '../../utils/productImages.js';
 
 export default function CartPage() {
   const { items, itemCount, totalEstimatedMinor, currency, updateQuantity, removeFromCart, clearCart } = useCart();
@@ -174,12 +175,21 @@ export default function CartPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
-                <tr key={item.variantId}>
-                  <td>
-                    <div className="cart-item-name">{item.productName}</div>
-                    <div className="cart-item-variant">Option: {item.variantName}</div>
-                  </td>
+              {items.map(item => {
+                const itemImg = getProductImage({ id: item.productId, name: item.productName });
+                return (
+                  <tr key={item.variantId}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                        {itemImg && (
+                          <img src={itemImg} alt="" className="cart-item-thumb" />
+                        )}
+                        <div>
+                          <div className="cart-item-name">{item.productName}</div>
+                          <div className="cart-item-variant">Option: {item.variantName}</div>
+                        </div>
+                      </div>
+                    </td>
                   <td>{money(item.priceMinor, item.currency)}</td>
                   <td>
                     <div className="quantity-stepper" style={{ margin: 0 }}>
@@ -218,7 +228,8 @@ export default function CartPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
 

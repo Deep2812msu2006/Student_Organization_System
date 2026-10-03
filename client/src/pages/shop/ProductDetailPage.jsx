@@ -5,6 +5,7 @@ import { money } from '../../utils/format.js';
 import { useCart } from '../../context/CartContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { triggerRazorpayPayment } from '../../utils/razorpay.js';
+import { getProductImage } from '../../utils/productImages.js';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -164,6 +165,8 @@ export default function ProductDetailPage() {
     }
   }
 
+  const productImg = getProductImage(product);
+
   return (
     <section className="container shop-page">
       <Link className="muted" to="/shop" style={{ display: 'inline-block', marginBottom: 'var(--space-4)' }}>
@@ -184,8 +187,12 @@ export default function ProductDetailPage() {
       )}
 
       <div className="product-detail-grid">
-        <div className="product-detail-hero" aria-hidden="true">
-          {product.category === 'apparel' ? '👕' : product.category === 'accessories' ? '🎒' : '✨'}
+        <div className={`product-detail-hero ${productImg ? 'has-image' : ''}`} aria-hidden="true">
+          {productImg ? (
+            <img src={productImg} alt={product.name} className="product-detail-img" />
+          ) : (
+            product.category === 'apparel' ? '👕' : product.category === 'accessories' ? '🎒' : '✨'
+          )}
         </div>
 
         <div className="product-detail-info">
