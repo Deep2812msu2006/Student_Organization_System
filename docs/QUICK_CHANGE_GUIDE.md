@@ -128,6 +128,23 @@ Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relativ
 - Provisional demo value: `database/migrations/003_membership.sql`, INSERT into `membership_plans`.
 - IMPORTANT: Confirm official dues with the organization before changing. Add a new migration to ALTER the plan; do not re-run 003.
 
+## Ticket check-in (implemented)
+
+- `@edit:CHECKIN_UI`: client/src/pages/staff/CheckInPage.jsx. Staff check-in screen with manual admission-code entry, event selection, success/denial feedback and attendance totals.
+- `@flow:CHECKIN`: server/services/checkin.service.js. Hash token → atomic conditional update → return result or denial.
+- `@rule:CHECKIN_ONCE`: server/model/event.model.js, `checkInEligibleTicket`. Concurrent scans: only one succeeds.
+- `@rule:STAFF_PERMISSION`: server/routes/checkin.routes.js. All routes require `requireRole('organizer')`.
+- Staff styles: client/src/styles/staff.css. Check responsive layout on mobile devices.
+
+## Manual payment confirmation (implemented)
+
+- `@edit:PAYMENT_UI`: client/src/pages/staff/PaymentPage.jsx. Treasurer screen for recording out-of-band payments. Clearly labeled as manual recording, not a payment gateway.
+- `@flow:PAYMENT_CONFIRMATION`: server/services/payment.service.js. Validate → idempotency check → atomic transaction (payment evidence + registration confirmation).
+- `@rule:PAYMENT_ONCE`: server/model/payment.model.js + server/services/payment.service.js. Idempotency key prevents duplicates. Cancelled registrations rejected.
+- `@rule:PAYMENT_EVIDENCE`: server/model/payment.model.js. Durable `payment_records` table stores all manual payment evidence.
+- Schema: database/migrations/006_payment_records.sql. Additive migration, no existing tables modified.
+- Validation: server/validators/checkin.schema.js. Zod schemas for check-in and payment requests.
+
 ## Planned features — not yet implemented
 
-Merchandise stock, expense approvals, business navigation and remaining permissions have no business implementation yet. Use API_CONTRACT.md to coordinate future files. Once implemented, put @rule comments beside the authoritative server/SQL logic and add the actual file/function here.
+Merchandise stock, expense approvals, financial reporting, business navigation and remaining permissions have no business implementation yet. Use API_CONTRACT.md to coordinate future files. Once implemented, put @rule comments beside the authoritative server/SQL logic and add the actual file/function here.
