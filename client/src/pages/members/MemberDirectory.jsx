@@ -1,17 +1,14 @@
-import { useEffect, useState } from 'react';
-import { api } from '../../services/api.js';
-
-// @edit:MEMBER_DIRECTORY — organizer-only UI; API authorization is in member.routes.js.
+import {useListState} from '../../hooks/useListState.js';
+import {useResource} from '../../hooks/useResource.js';
+import {ListSearch,Pagination,EmptyList} from '../../components/ListControls.jsx';
+import ModulePanel from '../../components/ModulePanel.jsx';
+// @edit:MEMBER_DIRECTORY
 export default function MemberDirectory(){
-  const [page,setPage]=useState(1),[result,setResult]=useState(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
-  useEffect(()=>{
-    const controller=new AbortController();setError('');setResult(null);
-    api(`/members?page=${page}&pageSize=20`,{signal:controller.signal}).then(setResult).catch(e=>{if(e.name!=='AbortError')setError(e.message);});
-    return()=>controller.abort();
-  },[page,retry]);
-  return <section className="container account-page"><p className="eyebrow">ORGANIZER WORKSPACE</p><h1>Member directory</h1><p className="muted">Account profiles and current membership status from PostgreSQL.</p>
-    {error&&<div role="alert" className="form-error">{error} <button className="text-button" onClick={()=>setRetry(retry+1)}>Retry</button></div>}
-    {!result&&!error&&<p role="status">Loading members…</p>}
-    {result&&<><div className="table-scroll"><table><caption>{result.pagination.total} account profiles</caption><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Membership</th></tr></thead><tbody>{result.data.map(member=><tr key={member.id}><td>{member.name}</td><td>{member.email}</td><td><span className="status-pill">{member.membershipStatus}</span></td></tr>)}</tbody></table></div>{!result.data.length&&<p>No members on this page.</p>}<div className="pagination"><button className="button button-secondary" disabled={page===1} onClick={()=>setPage(page-1)}>Previous</button><span>Page {page}</span><button className="button button-secondary" disabled={page*20>=result.pagination.total} onClick={()=>setPage(page+1)}>Next</button></div></>}
-  </section>;
+ const list=useListState(),r=useResource('/browse/members?'+list.query);
+ return <ModulePanel title="Member directory" description="Find people in your association and check their membership status." resource={r}>
+ <ListSearch list={list} label="Search member name or email"/>
+ <div className="table-scroll"><table><caption>Association members</caption><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Membership</th></tr></thead><tbody>{!r.loading&&r.data?.data.map(u=><tr key={u.id}><td><strong>{u.name}</strong></td><td>{u.email}</td><td><span className="status-pill">{u.membershipStatus}</span></td></tr>)}</tbody></table></div>
+ {!r.loading&&r.data?.data.length===0&&<EmptyList/>}
+ <Pagination list={list} pagination={r.data?.pagination} loading={r.loading} label="Members"/>
+ </ModulePanel>;
 }

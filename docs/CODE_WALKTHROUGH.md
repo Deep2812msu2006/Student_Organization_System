@@ -146,3 +146,15 @@ server/tests/auth.model.test.js and server/tests/member.model.test.js test the S
 | Pending-only order cancel | Conditional UPDATE: `status = 'cancelled' WHERE status = 'pending'` | merchandise.model.js |
 
 
+
+## Integrated community and finance
+React routes are in client/src/App.jsx. ModulePanel and useResource provide shared loading/error UI. Community routes validate permissions and input; community.model contains bounded parameterized reads, and community.service owns reminder/outbox transactions. Inventory routes own transactions for product/variant creation and conditional stock updates. The shared validator explicitly detects Joi to avoid confusing Zod validate() with Joi validate(). Private receipt ownership is stored in receipt_uploads; file storage is resolved relative to the service file, independent of the launch directory.
+
+
+## Search architecture
+List pages use useListState for URL-backed filters and useResource for abortable,
+request-keyed results. ListControls contains shared search and pagination UI.
+browse.routes validates query bounds and roles. browse.model uses only allowlisted SQL,
+applies visibility before search/counts, and returns one consistent page/count snapshot.
+Global search is deliberately limited to safe summaries with permitted destination links.
+The older business write APIs remain the authoritative transactional workflows.

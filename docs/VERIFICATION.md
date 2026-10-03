@@ -23,3 +23,49 @@ Verified on 2026-10-03 in the local Windows checkout on branch `om/project-setup
 API tests use an injected database query dependency; real PostgreSQL smoke verification is reported separately. Browser checks were performed with a task-local Playwright script and are not yet a committed end-to-end suite. Dharmik can add that suite in his testing work.
 
 No business tables, auth, permission enforcement, transactions for booking/stock, uploads, payments or mail exist, so none are claimed tested. No deployment, GitHub push or merge occurred. Local changes are left for review, not automatically committed. The temporary PostgreSQL cluster and test API/Vite processes were stopped after verification. The user's permanent local database and .env remain to be configured using README.md.
+
+## Integrated verification — 3 October 2026
+Base pulled: main 4520256. Working branch: om/complete-integration.
+- npm ci succeeded; dependency audit reported zero vulnerabilities.
+- Migrations through 010 applied to the dedicated local development database and
+  the isolated auth_slice_test database on port 55439.
+- npm test with NODE_TEST_DATABASE_URL: 98 passed, 0 failed, 0 skipped.
+  Includes existing suites plus real community/task/consent/reminder/discount/
+  inventory and concurrent event payment tests.
+- npm run build passed.
+- Browser (headless Edge): staff dues/finance/inventory screens; announcement
+  draft/publication; assigned task progress; subscription; receipt upload,
+  approval and reimbursement; 390px mobile navigation; no page JavaScript errors.
+- Separate browser purchase journey: catalog → size → cart → stored discounted
+  order → staff payment → paid status → fulfilled status.
+- npm run reminders:preview completed with local_preview mode.
+- GET /api/health returned status ok and database connected.
+- No push, merge, deployment, real email delivery or external payment performed.
+
+Tests do not certify production readiness. Mail remains a local preview with
+explicit job execution, payments are manually recorded, and receipt files are
+private local storage. Separate local databases do not synchronize rows.
+
+## Search and UI verification — 4 October 2026
+- Full PostgreSQL-backed suite: 103 passed, no failures or skips.
+- After the last directory-order refinement: search/member targeted suites 13 passed.
+- Production frontend build passed after the final UI changes.
+- Browser coverage: all list routes at desktop/mobile widths, 16-record pagination,
+  page-size changes, browser Back, empty searches, private global result links, and menus.
+- Re-ran the actual browser purchase → staff payment → fulfillment journey successfully.
+- Corrected stale response rendering during page changes; old-page rows no longer flicker.
+- API health reports database connected. No push, merge or deployment performed.
+
+## Full browser recheck — 4 October 2026
+
+- Full isolated-database test suite: 103 passed, zero failures or skips.
+- Production client build succeeded.
+- Real Edge browser: global search, list searches, 16-record pagination, page size changes, browser Back, empty results, desktop and mobile navigation.
+- Registration → enrollment → treasurer records dues → active membership survives reload.
+- Organizer creates/edits event → member reserves at member price → staff records payment → member receives admission code → organizer checks in → repeated code is denied → member sees checked-in status after reload.
+- Merchandise → cart → persisted discounted order → manual payment → fulfillment.
+- Announcement draft/publish, volunteer assignment/progress, mailing preference, receipt upload, expense approval/reimbursement and finance screen.
+- Reminder CLI processed the local-preview queue; no external messages sent.
+- Fixed check-in's first-50-event limitation using shared database search and pagination. Attendance is cleared while switching events to avoid showing previous-event totals.
+- Browser runs used synthetic local development records and left their demo transactions in the local database. Production data and Deep's separate database were not exercised.
+- These checks cover the listed workflows, not a guarantee of every possible input/device. Payments remain manual records; email remains a local preview.

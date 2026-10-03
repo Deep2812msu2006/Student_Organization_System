@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api.js';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useListState } from '../../hooks/useListState.js';
+import { useResource } from '../../hooks/useResource.js';
+import { ListSearch, Pagination } from '../../components/ListControls.jsx';
 import { date } from '../../utils/format.js';
 
 /**
@@ -13,30 +15,29 @@ import { date } from '../../utils/format.js';
  * Only accessible to organizer-role users (enforced both client-side and server-side).
  */
 export default function CheckInPage() {
-  const { user } = useAuth();
+  const list = useListState();
+  const eventResource = useResource('/browse/manage-events?' + list.query);
+  const events = eventResource.data?.data;
   const [eventId, setEventId] = useState('');
   const [ticketToken, setTicketToken] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [events, setEvents] = useState(null);
   const [attendance, setAttendance] = useState(null);
   const [attendanceError, setAttendanceError] = useState('');
   const tokenInput = useRef(null);
 
-  // Load organizer events on mount
+  // @flow:CHECKIN_EVENT_SEARCH — paging makes events beyond the first 50 reachable.
+  // Clear selection when the search changes to avoid admitting to a hidden event.
   useEffect(() => {
-    const controller = new AbortController();
-    api('/organizer/events?pageSize=50', { signal: controller.signal })
-      .then(r => setEvents(r.data))
-      .catch(e => { if (e.name !== 'AbortError') setError(e.message); });
-    return () => controller.abort();
-  }, []);
+    setEventId(''); setResult(null); setError('');
+  }, [list.query]);
 
   // Load attendance when event changes
   useEffect(() => {
     if (!eventId) { setAttendance(null); return; }
     const controller = new AbortController();
+    setAttendance(null);
     setAttendanceError('');
     api(`/events/${eventId}/attendance`, { signal: controller.signal })
       .then(r => setAttendance(r.data))
@@ -83,6 +84,9 @@ export default function CheckInPage() {
         Scan or enter admission codes to check in attendees. Only confirmed tickets are admitted.
       </p>
 
+      <ListSearch list={list} label="Search check-in events" />
+      {eventResource.error && <p role="alert" className="form-error">{eventResource.error.message || eventResource.error}</p>}
+      <Pagination list={list} pagination={eventResource.data?.pagination} loading={eventResource.loading} label="Check-in events" />
       <form className="checkin-form form-card" onSubmit={handleCheckIn}>
         <div className="field">
           <label htmlFor="checkin-event">Event</label>

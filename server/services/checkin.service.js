@@ -37,7 +37,7 @@ import { HttpError } from '../utils/httpError.js';
 export async function checkIn(pool, eventId, ticketToken, staffId) {
   // @flow:CHECKIN step 1 — validate event existence and publication status
   const event = await eventModel.getEventById(pool, eventId);
-  if (!event || event.status !== 'published') {
+  if (!event || event.status !== 'published' || new Date(event.endsAt) <= new Date()) {
     throw new HttpError(404, 'EVENT_NOT_FOUND', 'Event not found or not published.');
   }
 

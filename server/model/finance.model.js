@@ -96,8 +96,8 @@ export async function getFinancialSummary(db, { from = null, to = null } = {}) {
        COALESCE(SUM(amount_minor) FILTER (WHERE status = 'rejected'), 0)::bigint AS "rejectedMinor",
        COUNT(*) FILTER (WHERE status = 'rejected')::int AS "rejectedCount"
      FROM expenses
-     WHERE ($1::timestamptz IS NULL OR created_at >= $1)
-       AND ($2::timestamptz IS NULL OR created_at <= $2)
+     WHERE ($1::timestamptz IS NULL OR (CASE WHEN status='reimbursed' THEN reimbursed_at ELSE created_at END) >= $1)
+       AND ($2::timestamptz IS NULL OR (CASE WHEN status='reimbursed' THEN reimbursed_at ELSE created_at END) <= $2)
      GROUP BY currency
      ORDER BY currency ASC`,
     [from, to]

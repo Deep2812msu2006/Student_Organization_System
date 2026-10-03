@@ -19,3 +19,12 @@ export async function api(path,{method='GET',body,signal,headers={}}={}) {
   }
   return result;
 }
+
+export async function uploadReceipt(file){
+ if(!token){const result=await api('/auth/csrf');token=result.data.csrfToken;}
+ const response=await fetch('/api/v1/expenses/receipts',{method:'POST',credentials:'same-origin',
+ headers:{'Content-Type':file.type,'X-CSRF-Token':token,'X-Filename':encodeURIComponent(file.name)},body:file});
+ const result=await response.json();
+ if(!response.ok)throw new ApiError(response.status,result.error);
+ return result;
+}

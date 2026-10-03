@@ -196,7 +196,7 @@ export default function CartPage() {
           <div className="story-note" style={{ fontSize: '0.85rem' }}>
             <strong>Payment & Order Flow:</strong>
             <p style={{ margin: 0, marginTop: 'var(--space-1)' }}>
-              Submitted orders are created in <em>Pending (Awaiting Payment)</em> status.
+              Eligible membership discounts are calculated by the server at checkout; the cart shows an estimate. Submitted orders are created in <em>Pending (Awaiting Payment)</em> status.
               Payment confirmation is recorded by association staff.
             </p>
           </div>

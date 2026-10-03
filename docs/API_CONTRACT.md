@@ -201,3 +201,90 @@ Null from a conditional mutation means no eligible row changed; the service maps
 ## Decisions to settle before business coding
 
 Membership year-end/timezone; role multiplicity; whether one person may buy multiple tickets; when pending registrations count against capacity; refund/cancellation effects; discount percentages; payment mode; mail provider; currency and opening balance. These are not specified precisely enough by the source to silently invent.
+
+## Integrated community and operations API
+All paths below are under /api/v1. Writes require an authenticated session and
+X-CSRF-Token. Validation rejects unknown fields. Errors use
+{error:{code,message,fields?}}. Typical statuses: 400 invalid input, 401 no session,
+403 forbidden, 404 missing resource, 409 conflicting state. Lists return {data:[...]}
+and existing finance/dues/expense lists include pagination.
+
+- GET /announcements: public published posts, plus signed-in audience posts for
+  authenticated accounts. Organizers also see drafts. Latest 100.
+- POST /announcements: organizer; {title,body,audience:"public"|"members"} → 201 draft.
+  "members" here means authenticated community accounts, not paid-dues eligibility.
+- POST /announcements/:id/publish: organizer; {}. Publication and consent-based
+  outbox enqueue share one transaction. Repeated publication does not duplicate mail.
+- GET /mail/preferences and PUT /mail/preferences {subscribed:boolean}: own consent.
+- GET /staff/mail: organizer-only latest 100 queue/preview records.
+- POST /staff/reminders/run {days?:1..90}: organizer, defaults to 14.
+- POST /staff/mail/preview {}: organizer; processes at most 100 queued messages,
+  reporting local_preview. Opted-out recipients become suppressed.
+- GET /tasks: own assignments; organizers see latest 100 across users.
+- GET /tasks/assignees: organizer-only names/IDs, capped at 200.
+- POST /tasks: organizer; {title,description?,assigneeId,eventId?,dueAt?}.
+- PATCH /tasks/:id {status:"todo"|"in_progress"|"done"}: assignee or organizer.
+  Assignment updates and actor history are atomic. Tasks can be reopened.
+- GET /staff/inventory: organizer-only, up to 200 product/variant rows.
+- POST /staff/products: organizer; {name,description?,category?,size,priceMinor,
+  currency,stock,productId?}. Optional productId adds a size to an existing product;
+  otherwise product and variant creation share one transaction.
+- POST /staff/inventory/:id/adjust {delta:nonzero integer}: organizer-only atomic
+  increment/decrement of available stock. Insufficient stock gives 409.
+- GET /staff/orders/fulfillment: organizer-only oldest 100 paid orders.
+- POST /staff/orders/:id/fulfill {}: organizer; paid → fulfilled, repeated requests
+  leave fulfillment unchanged. Pending/cancelled orders give 409.
+
+Existing dues, expense and financial endpoints are described in
+DUES_FINANCE_API_HANDOFF.md. The integrated UI now consumes them. Receipt uploads
+are owned by the authenticated uploader in receipt_uploads. Attaching someone
+else's key is forbidden. Signatures must match permitted MIME types. Download
+requires expense ownership or financial staff access and uses no-store.
+
+### Models, transactions and policies
+- community.model.announcements(db,staff,signedIn) → safe latest-post array.
+- community.model.tasks(db,userId,staff) → task array with assignee names.
+- community.model.queueAnnouncement(db,item) → inserts deduplicated outbox rows;
+  caller supplies its publication transaction client.
+- community.service.runReminders(pool,days=14) → {queued}; owns transaction.
+- community.service.previewMail(pool) → {processed,mode:"local_preview"};
+  owns transaction and locks queue rows with SKIP LOCKED.
+- Routes own task creation/status/history transactions and product+variant creation.
+- submitOrder retains ownership of its stock/order transaction; active paid
+  membership selects membership_plans.merch_discount_pct. Discounted unit prices
+  are floored to minor units and snapshotted. The browser cart is an estimate.
+- Event confirmation now scopes idempotency keys by recorder, serializes identical
+  requests and validates payload consistency in one transaction.
+- Check-in is blocked after the event ends. Early check-in before the start is
+  allowed in this demo; publication through end time is the documented window.
+
+No external messages are sent. Announcements and reminders use local previews,
+without an automatic scheduler. SQL-backed screens never use static JSON as data.
+
+
+## Search and pagination
+GET /api/v1/search?q=&category=&page=1&pageSize=12 searches published public data,
+own orders/tasks/expenses and the member directory only for organizers.
+Supported category filters: events, products, announcements, orders, tasks,
+expenses, members. Blank category returns all permitted types.
+Results: {data:[{id,title,summary,kind,href}],pagination:{page,pageSize,total}}.
+
+GET /api/v1/browse/:resource?q=&category=&page=1&pageSize=12 powers list screens.
+Public resources: events, products, announcements (drafts only for organizers).
+Own-record resources: orders, tickets, tasks, expenses.
+Organizer-only: manage-events, members, mail, inventory, fulfillment.
+Finance staff: dues, pending-orders, pending-registrations.
+Organizers can see all tasks and financial staff can see all expenses.
+Ticket admission codes remain owner-only; internal token hashes/keys are removed.
+
+Queries use a fixed allowlist of SQL definitions and parameterized literal substring
+search. Permissions apply before both filtering and counting. Invalid inputs give
+400, protected lists without login give 401, wrong roles give 403, unknown resources
+give 404. q is limited to 120 characters, page to 1–100000, pageSize to 1–50.
+The UI offers 12/24/48 rows. Categories filter product listings. Order is stable with
+an ID tie-breaker. An out-of-range API page returns empty data with the correct total;
+the UI clamps to the last valid page. Each count and page share one SQL snapshot.
+
+List state lives in URL parameters, including browser Back/Forward and direct links.
+Lists filter on the server, not a truncated client-side array. Detail pages, forms,
+cart and aggregate financial summaries do not need pagination.

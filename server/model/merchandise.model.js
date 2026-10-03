@@ -219,7 +219,7 @@ export async function lockVariantsForOrder(client, variantIds) {
        pv.currency,
        pv.stock_quantity AS "stockQuantity",
        pv.is_active AS "isActive",
-       p.name AS "productName"
+       p.name AS "productName", p.is_published AS "isPublished"
      FROM product_variants pv
      JOIN products p ON p.id = pv.product_id
      WHERE pv.id = ANY($1::uuid[])
@@ -564,7 +564,7 @@ export async function cancelOrder(client, {
     `SELECT variant_id AS "variantId", quantity
      FROM order_items
      WHERE order_id = $1
-       AND variant_id IS NOT NULL`,
+       AND variant_id IS NOT NULL ORDER BY variant_id`,
     [orderId]
   );
 

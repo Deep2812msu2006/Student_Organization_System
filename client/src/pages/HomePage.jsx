@@ -1,26 +1,16 @@
-import { Link } from 'react-router-dom';
-import ConnectionStatus from '../components/ConnectionStatus.jsx';
-import { plannedModules, site } from '../config/site.js';
-
-export default function HomePage() {
-  return <div className="container">
-    <section className="hero" id="overview" aria-labelledby="hero-title">
-      <div><p className="eyebrow">{site.eyebrow}</p><h1 id="hero-title">{site.headline}</h1><p className="intro muted">{site.description}</p>
-        <div className="hero-actions"><Link className="button" to="/register">Join the association <span aria-hidden="true">&nbsp;↗</span></Link><Link className="button button-secondary" to="/shop">Browse Club Store</Link></div>
-        <p className="foundation-note muted">Membership, event reservations, payment recording, and merchandise store are live and available.</p>
-      </div>
-      <ConnectionStatus />
-    </section>
-    <section className="modules" id="modules" aria-labelledby="modules-title">
-      <div className="section-heading"><div><p className="eyebrow">ONE HOME FOR YOUR ASSOCIATION</p><h2 id="modules-title">What we’re building next</h2></div><p className="muted">Six connected workflows. One shared foundation.</p></div>
-      <div className="module-grid">{plannedModules.map(module => <article className="module-card" key={module.number}>
-        <div className="module-top"><span className="module-number">{module.number}</span><span className="badge">{['01','02','03'].includes(module.number) ? 'Available' : 'Planned'}</span></div>
-        <h3>{module.title}</h3><p>{module.description}</p><div className="module-owner">Build team · {module.owner}</div>
-      </article>)}</div>
-    </section>
-    <section className="team-section" id="team" aria-labelledby="team-title">
-      <div className="section-heading"><div><p className="eyebrow">BUILDING TOGETHER</p><h2 id="team-title">Clear ownership. Shared progress.</h2></div></div>
-      <div className="team-grid"><div><h3>Om</h3><p>Frontend, authentication, memberships, event registration and order APIs.</p></div><div><h3>Deep</h3><p>PostgreSQL schema, SQL models, migrations, transactions and reporting queries.</p></div><div><h3>Dharmik</h3><p>Check-in, expenses, announcements, reminders, tasks, testing and delivery.</p></div></div>
-    </section>
-  </div>;
+import {Link,useNavigate} from 'react-router-dom';
+import {site,plannedModules} from '../config/site.js';
+import {useAuth} from '../context/AuthContext.jsx';
+// @edit:HOME_HERO — branding/copy in config/site.js; decorative shapes contain no fake data.
+export default function HomePage(){
+ const navigate=useNavigate(),{user}=useAuth();
+ return <div className="container home-page"><section className="home-hero">
+ <div className="home-hero-copy"><p className="eyebrow"><span className="live-dot"/> YOUR CAMPUS. YOUR COMMUNITY.</p><h1>Good things happen<br/>when we <em>come together.</em></h1><p className="hero-description">Find your people, make something happen, and keep club life in one place. Welcome to {site.name}.</p>
+ <form className="hero-search" role="search" aria-label="Find something in your club" onSubmit={e=>{e.preventDefault();navigate('/search?q='+encodeURIComponent(new FormData(e.currentTarget).get('q')));}}><label className="sr-only" htmlFor="home-search">Search your club</label><span aria-hidden="true">⌕</span><input id="home-search" name="q" maxLength="120" placeholder="Events, merchandise, announcements…"/><button className="button" type="submit">Explore ↗</button></form>
+ <div className="hero-links"><Link to="/events">Find an event ↗</Link><Link to={user?'/membership':'/register'}>{user?'My membership':'Become a member'} ↗</Link></div></div>
+ <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><span className="art-label">A LITTLE MORE CONNECTED.</span><div className="hero-pass"><span>{site.name.toUpperCase()}</span><strong>Your people.<br/>Your place.</strong><div className="pass-mark">↗</div><small>STUDENT ASSOCIATION / MEMBERSHIP</small></div><div className="floating-note"><span>✦</span> Ideas grow here.</div></div>
+ </section>
+ <section className="home-modules" id="modules"><div className="section-heading"><div><p className="eyebrow">MAKE YOURSELF AT HOME</p><h2>Everything for club life.</h2></div><p className="muted">From your first event to your next big idea.</p></div><div className="home-module-grid">{plannedModules.map(m=><Link className="home-module" to={m.href} key={m.number}><div><span className="module-index">{m.number}</span><span aria-hidden="true">↗</span></div><h3>{m.title}</h3><p>{m.description}</p></Link>)}</div></section>
+ <section className="home-invitation"><div><p className="eyebrow">YOU BRING THE ENERGY</p><h2>There’s a place for you here.</h2><p>Join a task, share an idea, or simply show up.</p></div><Link className="button" to={user?'/tasks':'/register'}>{user?'Explore my tasks':'Join the community'} ↗</Link></section>
+ </div>;
 }

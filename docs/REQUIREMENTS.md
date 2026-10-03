@@ -37,16 +37,14 @@ The screenshot also recommends understanding AI-generated code, local/offline fa
 
 Chatbot, voice, WebSockets, native mobile apps, multi-tenant SaaS, voting/elections, a specific payment provider and Odoo integration. Annual leadership elections are context, not a request for election software. Local mail capture and manual/sandbox payment are proposed demo mechanisms, not real delivery/payment processing. Verify the official rubric before choosing them.
 
-## Current branch acceptance
+## Integrated milestone
+Implemented: memberships/dues, server-calculated eligibility, event reservations and
+manual payment confirmation, one-time admission-code check-in, attendance, shop
+sizes/stock/orders, merchandise discounts, inventory adjustments and collection,
+announcements/history, mailing preferences, local reminder previews, volunteer tasks,
+private expense receipts, review/reimbursement and currency-separated financial summaries.
 
-- Runnable React foundation and Express server; no fake member/ticket/financial data.
-- Live database readiness check with honest unavailable state and separate process liveness.
-- Required directories and reproducible dependency lockfile.
-- Shared navbar, navigation/site configuration and CSS design tokens.
-- Searchable implementation comments and accurate quick-change guide.
-- Requirements, ownership, API/model contract, setup and walkthrough documentation.
-- Available tests/builds executed and limitations disclosed.
-
-## Not implemented on this branch
-
-Business tables/migrations/seeds, auth/sessions/roles, business endpoints/forms, uploads, mailing, reminders, scanner, payments, financial reports, deployment and GitHub CI. Empty directories are tracked with .gitkeep. Planned navigation definitions have no invented routes.
+Mail delivery uses local preview and explicit job execution. External SMTP, automatic
+scheduling, payment gateway, refunds and camera QR scanning are not implemented.
+No chatbot, voice, sports scheduling or Odoo integration is required.
+See COMPLETE_SETUP_AND_DEEP_SYNC.md and FINAL_DEMO_FLOW.md for operating limits.
