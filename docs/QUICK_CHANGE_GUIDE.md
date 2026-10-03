@@ -54,6 +54,42 @@ Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relativ
 - Vite proxy: client/vite.config.js. If API port changes, update API_PROXY_TARGET in client/.env and restart Vite.
 - Verify GET /api/live and /api/health through both API and frontend proxy. Never paste credentials in a screenshot or commit .env.
 
-## Planned features — no implementation to edit yet
+## Email uniqueness rule
 
-Membership prices/expiry, ticket rules, stock, expense approvals, business navigation and user permissions have no business implementation on this branch. Use API_CONTRACT.md to coordinate future files. Once implemented, put @rule comments beside the authoritative server/SQL logic and add the actual file/function here. Do not create fictional file references or change frontend constants to simulate a business-rule update.
+- Tag: `@rule:EMAIL_UNIQUENESS`
+- DB enforcement: `database/migrations/002_users_and_roles.sql`, index `users_email_normalized_idx` on `lower(email)`.
+- Model: `server/model/auth.model.js`, `findUserByEmail` (normalize before call) and `createUser`.
+- Verify: inserting the same email in any case variant raises SQLSTATE 23505. Test: `server/tests/auth.model.test.js`.
+
+## Membership validity evaluation
+
+- Tag: `@rule:MEMBERSHIP_VALIDITY`
+- SQL: `server/model/member.model.js`, `getMemberProfile` CASE expression.
+- Rule: ACTIVE requires period exists AND starts_at <= now AND expires_at > now AND dues status = 'paid'.
+- Verify: four representative seeds (`database/seeds/002_dev_memberships.js`) and eight model tests in `server/tests/member.model.test.js`.
+
+## Member persistence flow
+
+- Tag: `@flow:MEMBER_PERSISTENCE`
+- Models: `server/model/auth.model.js` → `createUser`, `assignRole`; `server/model/member.model.js` → `createMembership`.
+- Om's service: BEGIN → createUser → assignRole('member') → createMembership → COMMIT.
+- `createMembership` inserts both `membership_periods` and `dues_obligations` (pending) atomically.
+- Verify: rollback test in `server/tests/member.model.test.js`.
+
+## Add a new migration
+
+- Tag: `@edit:ADD_MIGRATION`
+- Create `database/migrations/NNN_description.sql` with the next sequence number.
+- Run: `npm run migrate` from the repository root.
+- Never edit an applied migration; add a new file.
+- Verify: `npm run migrate:status` before and after.
+
+## Change membership plan dues amount
+
+- Tag: `@edit:MEMBERSHIP_PLAN`
+- Provisional demo value: `database/migrations/003_membership.sql`, INSERT into `membership_plans`.
+- IMPORTANT: Confirm official dues with the organization before changing. Add a new migration to ALTER the plan; do not re-run 003.
+
+## Planned features — not yet implemented
+
+Ticket rules, stock, expense approvals, business navigation and user permissions have no business implementation yet. Use API_CONTRACT.md to coordinate future files. Once implemented, put @rule comments beside the authoritative server/SQL logic and add the actual file/function here.
