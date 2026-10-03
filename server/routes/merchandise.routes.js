@@ -9,7 +9,7 @@ import {
   cancelOrderSchema,
   orderPaginationSchema,
 } from '../validators/merchandise.schema.js';
-import crypto from 'node:crypto';
+import { verifyGatewayPayment } from '../services/gateway.service.js';
 import Razorpay from 'razorpay';
 import { HttpError } from '../utils/httpError.js';
 import * as service from '../services/merchandise.service.js';
@@ -155,19 +155,9 @@ export function merchandiseRouter(pool, _config) {
       throw new HttpError(400, 'INVALID_PAYMENT_DETAILS', 'Missing Razorpay payment verification fields.');
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    if (!keySecret) {
-      throw new HttpError(500, 'PAYMENT_CONFIG_MISSING', 'Razorpay secret is not configured.');
-    }
-
-    const expectedSignature = crypto
-      .createHmac('sha256', keySecret)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest('hex');
-
-    if (expectedSignature !== razorpay_signature) {
-      throw new HttpError(400, 'INVALID_SIGNATURE', 'Razorpay payment verification signature failed.');
-    }
+    const pendingOrder = await service.getCustomerOrder(pool, req.params.id, req.user.id);
+    if (!pendingOrder) throw new HttpError(404, 'ORDER_NOT_FOUND', 'Order not found.');
+    await verifyGatewayPayment(req.body, {userId:req.user.id,targetField:'orderId',targetId:pendingOrder.id,amountMinor:pendingOrder.totalMinor,currency:pendingOrder.currency});
 
     const updatedOrder = await transaction(pool, async client => {
       const lockedOrder = await paymentModel.lockOrderForPayment(client, req.params.id);
