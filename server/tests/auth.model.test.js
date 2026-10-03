@@ -70,10 +70,9 @@ async function cleanup(pool, emails) {
 test('createUser returns safe profile without passwordHash', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'test-create-safe@example.test';
-  t.after(() => cleanup(pool, [email]));
+  t.after(() => cleanup(pool, [email]).finally(() => pool.end()));
 
   const user = await createUser(pool, {
     name: 'Test Create Safe',
@@ -93,10 +92,9 @@ test('createUser returns safe profile without passwordHash', async t => {
 test('findUserByEmail returns user including passwordHash for auth', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'test-find-email@example.test';
-  t.after(() => cleanup(pool, [email]));
+  t.after(() => cleanup(pool, [email]).finally(() => pool.end()));
 
   await createUser(pool, { name: 'Find Email', email, passwordHash: '$2b$12$findtest' });
   // @rule:EMAIL_UNIQUENESS: normalize before lookup.
@@ -111,10 +109,9 @@ test('findUserByEmail returns user including passwordHash for auth', async t => 
 test('findUserByEmail is case-insensitive (@rule:EMAIL_UNIQUENESS)', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'CaseEmail@Example.Test';
-  t.after(() => cleanup(pool, [email]));
+  t.after(() => cleanup(pool, [email]).finally(() => pool.end()));
 
   await createUser(pool, { name: 'Case Test', email, passwordHash: '$2b$12$x' });
 
@@ -128,10 +125,9 @@ test('findUserByEmail is case-insensitive (@rule:EMAIL_UNIQUENESS)', async t => 
 test('duplicate normalized email is rejected (@rule:EMAIL_UNIQUENESS)', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'dup@example.test';
-  t.after(() => cleanup(pool, [email]));
+  t.after(() => cleanup(pool, [email]).finally(() => pool.end()));
 
   await createUser(pool, { name: 'Original', email, passwordHash: '$2b$12$x' });
 
@@ -157,10 +153,9 @@ test('duplicate normalized email is rejected (@rule:EMAIL_UNIQUENESS)', async t 
 test('findUserById returns safe profile or null', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'test-by-id@example.test';
-  t.after(() => cleanup(pool, [email]));
+  t.after(() => cleanup(pool, [email]).finally(() => pool.end()));
 
   const created = await createUser(pool, { name: 'By ID', email, passwordHash: '$2b$12$x' });
   const found = await findUserById(pool, created.id);
@@ -176,10 +171,9 @@ test('findUserById returns safe profile or null', async t => {
 test('assignRole is idempotent; getUserRoles returns sorted list', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'test-roles@example.test';
-  t.after(() => cleanup(pool, [email]));
+  t.after(() => cleanup(pool, [email]).finally(() => pool.end()));
 
   const user = await createUser(pool, { name: 'Role Test', email, passwordHash: '$2b$12$x' });
 

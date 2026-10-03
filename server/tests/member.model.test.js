@@ -76,10 +76,9 @@ const NOW = '2026-10-03T10:00:00.000Z';
 test('getMemberProfile: active paid membership (@rule:MEMBERSHIP_VALIDITY)', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'mp-active@example.test';
-  t.after(() => cleanupUser(pool, email));
+  t.after(() => cleanupUser(pool, email).finally(() => pool.end()));
 
   await makeUserWithMembership(pool, {
     email, name: 'Active Member',
@@ -100,10 +99,9 @@ test('getMemberProfile: active paid membership (@rule:MEMBERSHIP_VALIDITY)', asy
 test('getMemberProfile: pending dues → status is pending, not active (@rule:MEMBERSHIP_VALIDITY)', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'mp-pending@example.test';
-  t.after(() => cleanupUser(pool, email));
+  t.after(() => cleanupUser(pool, email).finally(() => pool.end()));
 
   await makeUserWithMembership(pool, {
     email, name: 'Pending Member',
@@ -121,10 +119,9 @@ test('getMemberProfile: pending dues → status is pending, not active (@rule:ME
 test('getMemberProfile: expired period → status is expired (@rule:MEMBERSHIP_VALIDITY)', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'mp-expired@example.test';
-  t.after(() => cleanupUser(pool, email));
+  t.after(() => cleanupUser(pool, email).finally(() => pool.end()));
 
   await makeUserWithMembership(pool, {
     email, name: 'Expired Member',
@@ -143,10 +140,9 @@ test('getMemberProfile: expired period → status is expired (@rule:MEMBERSHIP_V
 test('getMemberProfile: future period → status is future (@rule:MEMBERSHIP_VALIDITY)', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'mp-future@example.test';
-  t.after(() => cleanupUser(pool, email));
+  t.after(() => cleanupUser(pool, email).finally(() => pool.end()));
 
   await makeUserWithMembership(pool, {
     email, name: 'Future Member',
@@ -165,10 +161,9 @@ test('getMemberProfile: future period → status is future (@rule:MEMBERSHIP_VAL
 test('getMemberProfile: user with no membership → status is none', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'mp-none@example.test';
-  t.after(() => cleanupUser(pool, email));
+  t.after(() => cleanupUser(pool, email).finally(() => pool.end()));
 
   const user = await createUser(pool, { name: 'No Membership', email, passwordHash: '$2b$12$x' });
   const profile = await getMemberProfile(pool, user.id, NOW);
@@ -189,11 +184,10 @@ test('getMemberProfile: non-existent userId → null', async t => {
 test('listMembers returns paginated rows and total', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   // Create two synthetic users for listing.
   const emails = ['list-a@example.test', 'list-b@example.test'];
-  t.after(() => Promise.all(emails.map(e => cleanupUser(pool, e))));
+  t.after(() => Promise.all(emails.map(e => cleanupUser(pool, e))).finally(() => pool.end()));
 
   for (const [i, email] of emails.entries()) {
     await createUser(pool, { name: `List User ${i}`, email, passwordHash: '$2b$12$x' });
@@ -211,10 +205,9 @@ test('listMembers returns paginated rows and total', async t => {
 test('createMembership rollback leaves no partial records', async t => {
   if (skipIfNoTestDb(t)) return;
   const pool = makePool();
-  t.after(() => pool.end());
 
   const email = 'mp-rollback@example.test';
-  t.after(() => cleanupUser(pool, email));
+  t.after(() => cleanupUser(pool, email).finally(() => pool.end()));
 
   const user = await createUser(pool, { name: 'MP Rollback', email, passwordHash: '$2b$12$x' });
 

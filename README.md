@@ -1,6 +1,6 @@
 # Student Organization System
 
-React + Vite + Express + PostgreSQL foundation for the Skyline Student Association hackathon project. English-only. **This branch is the shared foundation, not a completed business application.**
+React + Vite + Express + PostgreSQL for the Skyline Student Association hackathon project. English-only. **Authentication and membership are now implemented.** See [the current handoff](docs/AUTH_MEMBERSHIP_HANDOFF.md) for setup, synthetic demo logins, API changes and verification.
 
 ## What works
 
@@ -9,7 +9,7 @@ React + Vite + Express + PostgreSQL foundation for the Skyline Student Associati
 - API liveness/readiness, bounded connection/query times, safe errors and baseline security headers.
 - Required folder structure, shared contracts, ownership and development documentation.
 
-Not implemented: auth, business tables/migrations/seeds, memberships, events/tickets, shop, expenses, finance, tasks, mailing, uploads or deployment. Roadmap cards are labeled planned; they are not demo transactions.
+Also working: signup/login/logout, PostgreSQL sessions, membership enrollment and eligibility, and an organizer-only directory. Not implemented: payment recording, events/tickets, shop, expenses, finance, tasks, mailing, uploads or deployment.
 
 ## Prerequisites
 
@@ -50,9 +50,11 @@ CREATE DATABASE student_organization OWNER club_user;
 
 Enter a local password interactively at the password prompt; do not commit it. Set server/.env DATABASE_URL to `postgresql://club_user:YOUR_URL_ENCODED_PASSWORD@127.0.0.1:5432/student_organization`. URL-encode special password characters. No business migrations are required for SELECT 1 health; Deep will supply migrations later.
 
-Start both processes from the repository root:
+Set a random SESSION_SECRET of at least 32 characters in server/.env. Keep existing local .env files. Initialize the schema and start both processes from the repository root:
 
 ```powershell
+npm run migrate
+npm run seed:dev
 npm run dev
 ```
 

@@ -1,0 +1,51 @@
+/* @edit:ACCOUNT_LAYOUT — auth/profile layouts use the shared palette from tokens.css. */
+.auth-grid { display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;padding-block:4rem;min-height:75vh; }
+.auth-story { max-width:480px; }
+.auth-story h1 { font-size:clamp(2.3rem,4.4vw,3.5rem); }
+.auth-story>p:not(.eyebrow) { color:var(--color-muted);font-size:1.05rem; }
+.story-note { margin-top:2rem;border-left:3px solid var(--color-brand);padding-left:1rem; }
+.story-note p { color:var(--color-muted);font-size:.9rem; }
+.form-card { padding:2rem;border:1px solid var(--color-border);border-radius:var(--radius);background:var(--color-surface); }
+.form-card h2 { margin:.3rem 0 .75rem;font-size:1.7rem;letter-spacing:-.03em; }
+.field { display:flex;flex-direction:column;gap:.4rem;margin-block:1.2rem; }
+.field label { font-size:.88rem;font-weight:650; }
+.field input { width:100%;border:1px solid var(--color-border);border-radius:.5rem;background:var(--color-surface);color:var(--color-text);padding:.8rem;min-height:46px; }
+.field input[aria-invalid=true] { border-color:var(--color-warning); }
+.field-error { color:var(--color-warning);font-size:.85rem; }
+.full-width { width:100%;margin-top:.7rem; }
+.form-error { background:var(--color-warning-bg);color:var(--color-warning);padding:1rem;border-radius:.5rem;margin-block:1rem;overflow-wrap:anywhere; }
+.form-footer { font-size:.9rem;text-align:center;margin:1.5rem 0 0; }
+.form-footer a { font-weight:650; }
+.account-page { padding-block:3rem;min-height:70vh; }
+.account-page h1 { font-size:clamp(2rem,4vw,2.9rem);margin-bottom:.6rem; }
+.account-grid { display:grid;grid-template-columns:1.1fr 1fr;gap:1.5rem;margin-top:2rem; }
+.member-pass { padding:2rem;background:var(--color-brand);color:var(--button-text);border-radius:var(--radius); }
+.pass-top { display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap; }
+.member-pass h2 { margin:1.7rem 0 .3rem;font-size:1.8rem; }
+.member-pass p { margin-top:0;overflow-wrap:anywhere; }
+.member-pass dl { margin-bottom:0; }
+.member-pass dl>div { margin-top:1rem; }
+.member-pass dt { font-size:.75rem;opacity:.85; }
+.member-pass dd { margin:0;font-size:.95rem; }
+.reference { overflow-wrap:anywhere;font-family:ui-monospace,monospace;font-size:.8rem!important; }
+.status-pill { display:inline-block;background:var(--color-subtle);color:var(--color-brand);padding:.25rem .65rem;border-radius:2rem;font-size:.76rem;text-transform:capitalize; }
+.benefit-row { display:flex;justify-content:space-between;gap:1rem;padding:1rem 0;border-bottom:1px solid var(--color-border); }
+.benefit-row strong { font-size:1.2rem; }
+.dues-note { display:flex;justify-content:space-between;gap:1rem;margin-block:1.2rem;align-items:center; }
+.benefits small { display:block;margin-top:1rem; }
+.plan-section { margin-top:2.5rem; }
+.plans-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:1rem; }
+.plan-price { font-size:2rem;font-weight:650;margin-block:.6rem; }
+.notice { background:var(--color-success-bg);color:var(--color-success);padding:1rem;border-radius:.5rem; }
+.text-button { border:0;text-decoration:underline;background:transparent;color:inherit;min-height:44px;padding:.3rem .6rem; }
+.table-scroll { overflow-x:auto;margin-top:2rem;border:1px solid var(--color-border);border-radius:.7rem;background:var(--color-surface); }
+table { width:100%;border-collapse:collapse;text-align:left; }
+caption { text-align:left;padding:1rem;font-weight:650; }
+th,td { padding:1rem;border-top:1px solid var(--color-border); }
+th { font-size:.8rem; }
+td { font-size:.9rem;overflow-wrap:anywhere; }
+.pagination { display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-top:1.2rem; }
+.nav-links a.button { color:var(--button-text); }
+.nav-links a.button:hover { background:var(--button-hover-bg); }
+@media(max-width:800px){.auth-grid,.account-grid{grid-template-columns:1fr;gap:2rem}.auth-grid{padding-block:2rem}.auth-story{max-width:none}.story-note{display:none}.plans-grid{grid-template-columns:1fr}}
+@media(max-width:480px){.form-card,.member-pass{padding:1.3rem}.account-page{padding-block:2rem}.pass-top{gap:.5rem}}

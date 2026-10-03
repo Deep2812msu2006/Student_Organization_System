@@ -22,7 +22,16 @@ export function readConfig() {
       throw new Error('Configure database TLS with DB_SSL_CA_FILE instead of URL SSL parameters.');
     }
   }
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (sessionSecret && sessionSecret.length < 32) throw new Error('SESSION_SECRET needs at least 32 characters.');
+  const production = process.env.NODE_ENV === 'production';
+  if (production && !sessionSecret) throw new Error('SESSION_SECRET is required in production.');
+  const membershipYearEndMonth = integer('MEMBERSHIP_YEAR_END_MONTH', 3, 1, 12);
+  const membershipYearEndDay = integer('MEMBERSHIP_YEAR_END_DAY', 31, 1, 31);
+  if (new Date(Date.UTC(2025,membershipYearEndMonth-1,membershipYearEndDay)).getUTCMonth() !== membershipYearEndMonth-1) throw new Error('Membership year-end must be a valid date every year.');
   return {
+    sessionSecret, production, trustProxy: process.env.TRUST_PROXY === '1',
+    membershipYearEndMonth, membershipYearEndDay,
     host: process.env.HOST || '127.0.0.1', port: integer('PORT', 5000, 1, 65535),
     databaseUrl, poolMax: integer('DB_POOL_MAX', 10, 1, 50),
     connectTimeoutMs: integer('DB_CONNECT_TIMEOUT_MS', 3000, 100, 30000),

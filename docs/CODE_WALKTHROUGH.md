@@ -1,5 +1,7 @@
 # Foundation walkthrough
 
+> This describes the original foundation. Authentication and membership now work; see [the current walkthrough and handoff](AUTH_MEMBERSHIP_HANDOFF.md). Business requests now pass through PostgreSQL sessions, CSRF verification, strict validation and role checks before the service/model layer.
+
 ## What happens when the page loads?
 
 client/index.html loads client/src/main.jsx. React mounts App, which uses PublicLayout and HomePage. PublicLayout renders the skip link, Navbar, main landmark and footer. HomePage renders static roadmap/copy and a real ConnectionStatus component. Roadmap copy is static presentation metadata, not fabricated business data.

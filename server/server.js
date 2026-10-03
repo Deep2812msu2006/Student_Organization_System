@@ -4,7 +4,7 @@ import { createDatabase } from './config/db.js';
 
 const config = readConfig();
 const database = createDatabase(config);
-const server = createApp(database).listen(config.port, config.host, () => {
+const server = createApp(database, config).listen(config.port, config.host, () => {
   console.log(`API listening at http://${config.host}:${config.port}`);
   if (!database.configured) console.log('Database is not configured; /api/health will return 503.');
 });

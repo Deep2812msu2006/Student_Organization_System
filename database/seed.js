@@ -16,7 +16,7 @@
 import { readdir } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
-import pg from 'pg';
+import { createDatabase } from '../server/config/db.js';
 import { readConfig } from '../server/config/env.js';
 
 const SEEDS_DIR = fileURLToPath(new URL('./seeds', import.meta.url));
@@ -43,14 +43,7 @@ async function main() {
     return;
   }
 
-  const pool = new pg.Pool({
-    connectionString: config.databaseUrl,
-    max: 2,
-    connectionTimeoutMillis: config.connectTimeoutMs,
-    query_timeout: config.queryTimeoutMs,
-    ssl: false,
-  });
-  pool.on('error', () => {});
+  const { pool } = createDatabase(config);
 
   try {
     const files = (await readdir(SEEDS_DIR))
