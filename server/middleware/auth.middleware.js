@@ -25,6 +25,10 @@ export function requireUser(pool) {
     next();
   };
 }
-export function requireRole(role) {
-  return (req, _res, next) => req.user.roles.includes(role) ? next() : next(new HttpError(403, 'FORBIDDEN', 'You do not have permission for this action.'));
+export function requireRole(...roles) {
+  const allowed = roles.flat();
+  return (req, _res, next) =>
+    allowed.some(role => req.user.roles.includes(role))
+      ? next()
+      : next(new HttpError(403, 'FORBIDDEN', 'You do not have permission for this action.'));
 }

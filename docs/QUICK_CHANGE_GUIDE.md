@@ -176,7 +176,22 @@ Use Ctrl+Shift+F in your editor to search the exact tag. Paths below are relativ
 - Tag: `@rule:STOCK_RESTORE_ON_CANCEL`
 - Model: `server/model/merchandise.model.js`, `cancelOrder`.
 - Service: `server/services/merchandise.service.js`, `cancelCustomerOrder`.
-- Invariant: Order cancellation conditionally transitions status `WHERE status IN ('pending', 'paid')` and restores variant stock for each item inside the transaction. Subsequent cancellation calls affect 0 rows and cannot double-restore stock.
+- Invariant: Order cancellation conditionally transitions status `WHERE status = 'pending'` and restores variant stock for each item inside the transaction. Subsequent cancellation calls affect 0 rows and cannot double-restore stock.
+
+- Tag: `@rule:PENDING_ONLY_CANCEL`
+- Model: `server/model/merchandise.model.js`, `cancelOrder`.
+- UI: `client/src/pages/shop/OrderDetailPage.jsx`.
+- Invariant: Cancellation is restricted exclusively to `pending` orders. Paid orders cannot be cancelled through this customer prototype.
+
+## Merchandise manual payment confirmation (implemented)
+
+- `@edit:MERCHANDISE_PAYMENT_UI`: `client/src/pages/staff/PaymentPage.jsx`. Staff payment screen featuring a dedicated "Merchandise Orders" tab, clearly labeled operation "Record manual payment received", items summary breakdown table, preserved idempotency key across uncertain retries, responsive design, keyboard accessibility, and loading/conflict/success states.
+- `@flow:MERCHANDISE_PAYMENT`: `server/services/payment.service.js`. Scopes key to recorder ID (`scopedKey(staffId, key)`), pre-checks order status, acquires order row lock (`lockOrderForPayment` with `FOR UPDATE`), inserts durable payment record linking `order_id`, and transitions order from `pending` to `paid` (`confirmOrderPayment`) atomically inside a transaction.
+- `@flow:MERCHANDISE_PAYMENT_LIST`: `server/routes/checkin.routes.js`, `server/services/payment.service.js`. Paginated list of pending orders for staff (`GET /orders/pending` and `GET /staff/orders/pending`). Internal idempotency keys are stripped from response payloads.
+- `@rule:ORDER_LOCK_ORDER`: `server/model/payment.model.js`, `server/model/merchandise.model.js`. Payment confirmation and cancellation acquire order row lock (`FOR UPDATE`) with deterministic ordering to avoid PostgreSQL deadlocks.
+- `@rule:PAYMENT_TARGET_MUTEX`: `database/migrations/008_merchandise_payments.sql`. Check constraint `payment_records_target_check` ensures each payment record links to EITHER a `registration_id` OR an `order_id`, never both and never neither.
+- Validation: `server/validators/checkin.schema.js`, `merchandisePaymentSchema` and `pendingOrderQuerySchema`.
+- Permissions: Explicitly supports `treasurer` role; `organizer` is also authorized. Ordinary members and volunteers are strictly denied (403 `FORBIDDEN`).
 
 ## Planned features — not yet implemented
 

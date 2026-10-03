@@ -27,3 +27,19 @@ export const paymentSchema = z.object({
 
 // Idempotency key for payment requests (same format as event bookings)
 export const paymentIdempotencySchema = z.string().min(16).max(100).regex(/^[a-zA-Z0-9_-]+$/);
+
+// @edit:MERCHANDISE_PAYMENT_UI — Manual merchandise order payment confirmation request body
+export const merchandisePaymentSchema = z.object({
+  orderId: z.string().regex(uuidRegex, 'Invalid order ID.'),
+  amountMinor: z.number().int().min(0).max(100000000),
+  currency: z.enum(['INR', 'USD', 'EUR', 'GBP']),
+  method: z.string().trim().min(1).max(50),
+  externalReference: z.string().trim().min(1).max(200).optional(),
+  notes: z.string().trim().max(500).default(''),
+}).strict();
+
+export const pendingOrderQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+}).strict();
+

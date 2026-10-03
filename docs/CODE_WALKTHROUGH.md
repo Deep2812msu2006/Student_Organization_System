@@ -12,7 +12,13 @@ Manual payment: PaymentPage.jsx → api('/payments/manual') → checkin.routes.j
 
 ## Merchandise and order request flow
 
-React merchandise catalog & cart screens use `CartContext.jsx` for local cart state → `ShopPage.jsx` and `ProductDetailPage.jsx` display database-backed items, sizes, prices, and stock availability → `CartPage.jsx` reviews order items and submits `POST /api/v1/orders` with `Idempotency-Key` and CSRF token → `merchandise.routes.js` validates structure with Zod → `merchandise.service.js` acquires advisory lock on idempotency key, locks requested variants in deterministic UUID ASC order (`@rule:VARIANT_LOCK_ORDER`), checks stock levels, deducts inventory atomically (`@rule:STOCK_DEDUCT_ON_ORDER`), and writes order + item snapshots → `merchandise.model.js` → PostgreSQL. Customers view orders via `OrdersPage.jsx` / `OrderDetailPage.jsx` (`GET /api/v1/orders/me` and `GET /api/v1/orders/:id`, owner-restricted). Cancellation via `POST /api/v1/orders/:id/cancel` restores variant inventory inside the transaction exactly once (`@rule:STOCK_RESTORE_ON_CANCEL`). Orders begin in `pending` status awaiting manual payment confirmation by staff. See [MERCHANDISE_UI_HANDOFF.md](MERCHANDISE_UI_HANDOFF.md).
+React merchandise catalog & cart screens use `CartContext.jsx` for local cart state → `ShopPage.jsx` and `ProductDetailPage.jsx` display database-backed items, sizes, prices, and stock availability → `CartPage.jsx` reviews order items and submits `POST /api/v1/orders` with `Idempotency-Key` and CSRF token → `merchandise.routes.js` validates structure with Zod → `merchandise.service.js` acquires advisory lock on idempotency key, locks requested variants in deterministic UUID ASC order (`@rule:VARIANT_LOCK_ORDER`), checks stock levels, deducts inventory atomically (`@rule:STOCK_DEDUCT_ON_ORDER`), and writes order + item snapshots → `merchandise.model.js` → PostgreSQL. Customers view orders via `OrdersPage.jsx` / `OrderDetailPage.jsx` (`GET /api/v1/orders/me` and `GET /api/v1/orders/:id`, owner-restricted). Cancellation via `POST /api/v1/orders/:id/cancel` restores variant inventory inside the transaction exactly once (`@rule:STOCK_RESTORE_ON_CANCEL`). Orders begin in `pending` status awaiting manual payment confirmation by staff. Only pending orders can be cancelled by customers; paid orders cannot be cancelled through this prototype (@rule:PENDING_ONLY_CANCEL). See [MERCHANDISE_UI_HANDOFF.md](MERCHANDISE_UI_HANDOFF.md).
+
+## Merchandise manual payment confirmation flow
+
+Staff treasurer screens use `PaymentPage.jsx` (Merchandise Orders tab) → requests `GET /api/v1/orders/pending` → `checkin.routes.js` (`auth` + `paymentStaff` allowing `treasurer` and `organizer` roles) → `payment.service.js` `listPendingMerchandiseOrders` → `payment.model.js` `listPendingOrders` with customer join and items summary (internal idempotency keys stripped from response).
+
+When staff records payment: `PaymentPage.jsx` opens modal labeled "Record manual payment received", preserves generated `Idempotency-Key` across uncertain retries → submits `POST /api/v1/payments/merchandise/manual` with CSRF token and payload `{ orderId, amountMinor, currency, method, externalReference?, notes? }` → `checkin.routes.js` validates input and permissions → `payment.service.js` scopes idempotency key to staff user (`scopedKey(staffId, key)`) → pre-validates order status → checks out transaction client (`BEGIN`) → acquires order row lock via `payment.model.js` `lockOrderForPayment` (`SELECT ... FOR UPDATE`) → verifies status is still `pending` and amounts match → inserts durable payment evidence via `payment.model.js` `insertPaymentRecord` linking `order_id` → updates order status to `paid` and stamps `paid_at` via `confirmOrderPayment` → `COMMIT` → returns sanitized payment and order data with 201 (or 200 replay on identical duplicate). UI refreshes pending list and displays success feedback.
 
 > This describes the original foundation. Authentication and membership now work; see [the current walkthrough and handoff](AUTH_MEMBERSHIP_HANDOFF.md). Business requests now pass through PostgreSQL sessions, CSRF verification, strict validation and role checks before the service/model layer.
 
@@ -83,9 +89,15 @@ server/tests/auth.model.test.js and server/tests/member.model.test.js test the S
 - `@flow:PAYMENT_CONFIRMATION` — `server/services/payment.service.js` (validate → idempotency → atomic transaction).
 - `@rule:PAYMENT_ONCE` — `server/model/payment.model.js`, `server/services/payment.service.js` (idempotency + conditional status change).
 - `@rule:PAYMENT_EVIDENCE` — `database/migrations/006_payment_records.sql`, `server/model/payment.model.js`.
-- `@rule:STAFF_PERMISSION` — `server/routes/checkin.routes.js` (requireRole('organizer') on all routes).
+- `@rule:STAFF_PERMISSION` — `server/routes/checkin.routes.js` (requireRole('organizer') on check-in, requireRole('organizer', 'treasurer') on payment routes).
+- `@flow:MERCHANDISE_PAYMENT` — `server/services/payment.service.js` (scoped idempotency key → lock order → insert payment record → confirm order status).
+- `@flow:MERCHANDISE_PAYMENT_LIST` — `server/routes/checkin.routes.js`, `server/services/payment.service.js` (paginated pending orders for authorized staff).
+- `@rule:ORDER_LOCK_ORDER` — `server/model/payment.model.js`, `server/model/merchandise.model.js` (consistent FOR UPDATE locking order to prevent deadlocks).
+- `@rule:PENDING_ONLY_CANCEL` — `server/model/merchandise.model.js`, `client/src/pages/shop/OrderDetailPage.jsx` (cancellation allowed only for pending orders).
+- `@rule:PAYMENT_TARGET_MUTEX` — `database/migrations/008_merchandise_payments.sql` (exactly one target: registration_id OR order_id).
 - `@edit:CHECKIN_UI` — `client/src/pages/staff/CheckInPage.jsx`.
 - `@edit:PAYMENT_UI` — `client/src/pages/staff/PaymentPage.jsx`.
+- `@edit:MERCHANDISE_PAYMENT_UI` — `client/src/pages/staff/PaymentPage.jsx` (merchandise orders tab and manual payment confirmation modal).
 - `@edit:ADD_MIGRATION` — `docs/QUICK_CHANGE_GUIDE.md`, `database/migrations/` (add NNN_description.sql).
 
 ### Key constraints enforced at DB level
@@ -102,4 +114,7 @@ server/tests/auth.model.test.js and server/tests/member.model.test.js test the S
 | Check-in once only | Conditional UPDATE: `checked_in_at IS NULL` + `status = 'confirmed'` | 005 migration, event.model.js |
 | Payment evidence durability | `payment_records` with UNIQUE `idempotency_key` | 006 migration |
 | Registration confirmation atomic | Payment record + status change in one transaction | payment.service.js |
+| Payment target mutex | CHECK `payment_records_target_check` (registration_id OR order_id) | 008 migration |
+| Unique payment per order | UNIQUE INDEX on `order_id` in `payment_records` | 008 migration |
+| Pending-only order cancel | Conditional UPDATE: `status = 'cancelled' WHERE status = 'pending'` | merchandise.model.js |
 

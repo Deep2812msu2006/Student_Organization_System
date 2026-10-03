@@ -48,17 +48,29 @@ Authentication proposal: opaque HttpOnly cookie session stored in PostgreSQL. Se
 - POST `/orders`: authenticated customer `{items:[{variantId,quantity}]}` with `Idempotency-Key` header and CSRF token → 201 `{data:{id,status:'pending',totalMinor,currency,items:[{variantId,productName,variantName,unitPriceMinor,quantity,totalMinor}]}}` or 200 replay on identical request. Rejects client-supplied prices, totals or status. Deterministically locks variants (UUID ASC) and decrements stock atomically inside one transaction (@rule:VARIANT_LOCK_ORDER, @rule:STOCK_DEDUCT_ON_ORDER).
 - GET `/orders/me`: authenticated customer paginated order history with item summaries.
 - GET `/orders/:id`: authenticated customer order detail restricted to the owner (404/403 for non-owners).
-- POST `/orders/:id/cancel`: authenticated customer order cancellation `{reason?}`; verifies ownership, transitions status to `cancelled` and restores variant stock exactly once inside the transaction (@rule:STOCK_RESTORE_ON_CANCEL). Only `pending` and `paid` orders may be cancelled.
+- POST `/orders/:id/cancel`: authenticated customer order cancellation `{reason?}`; verifies ownership, transitions status to `cancelled` and restores variant stock exactly once inside the transaction (@rule:STOCK_RESTORE_ON_CANCEL). Only `pending` orders may be cancelled (@rule:PENDING_ONLY_CANCEL); paid orders cannot be cancelled through this customer prototype.
 
 ### Dharmik: check-in (implemented)
 
 - POST `/checkins`: organizer-role staff `{eventId,ticketToken}` → 200 `{data:{registrationId,eventId,status,checkedInAt,checkedInBy}}`. Requires CSRF. Token is SHA-256 hashed and matched against `registrations.token_hash`. Atomic conditional UPDATE ensures one-time admission. Invalid/unconfirmed/cancelled/wrong-event/already-used → 409 `CHECKIN_DENIED`. Staff identity and check-in time are recorded.
 - GET `/events/:eventId/attendance`: organizer-role → `{data:{eventId,eventTitle,capacity,totalRegistrations,confirmed,pending,cancelled,checkedIn}}`. Database-backed counts.
-- GET `/events/:eventId/pending-registrations`: organizer-role → `{data:[{id,eventId,userId,userName,userEmail,priceMinor,currency,status,createdAt}]}`. Lists pending-only registrations.
+- GET `/events/:eventId/pending-registrations`: staff (`treasurer` and `organizer` roles) → `{data:[{id,eventId,userId,userName,userEmail,priceMinor,currency,status,createdAt}]}`. Lists pending-only registrations.
 
 ### Dharmik: manual payment confirmation (implemented)
 
-- POST `/payments/manual`: organizer-role treasurer `{registrationId,amountMinor,currency,method,externalReference?,notes?}` + `Idempotency-Key` header → 201 `{data:{payment,registration},replayed:false}` or 200 for replay. Validates amount/currency against registration snapshot. Rejects cancelled registrations (409 `REGISTRATION_CANCELLED`). Zero-price path: amountMinor must be 0, method set to `zero_price`. Inserts durable `payment_records` evidence and confirms registration pending→confirmed in one transaction. Idempotent: duplicate keys return existing result. Does not simulate a payment gateway or collect card details.
+- POST `/payments/manual`: staff (`treasurer` and `organizer` roles) `{registrationId,amountMinor,currency,method,externalReference?,notes?}` + `Idempotency-Key` header (16–100 chars) → 201 `{data:{payment,registration},replayed:false}` or 200 for replay. Validates amount/currency against registration snapshot. Rejects cancelled registrations (409 `REGISTRATION_CANCELLED`). Zero-price path: amountMinor must be 0, method set to `zero_price`. Inserts durable `payment_records` evidence and confirms registration pending→confirmed in one transaction. Idempotent: duplicate keys return existing result. Does not simulate a payment gateway or collect card details.
+
+### Dharmik: merchandise manual payment confirmation (implemented)
+
+- GET `/orders/pending` and GET `/staff/orders/pending`: staff (`treasurer` and `organizer` roles; regular members and volunteers denied 403) → 200 `{data:[{id,userId,userName,userEmail,status,totalMinor,currency,createdAt,items:[{id,productName,variantName,unitPriceMinor,quantity,totalMinor}]}],pagination:{page,pageSize,total}}`. Static route prevents route conflicts with customer `/orders/:id`. Never exposes internal idempotency keys in response payloads.
+- POST `/payments/merchandise/manual`: staff (`treasurer` and `organizer` roles) `{orderId,amountMinor,currency,method,externalReference?,notes?}` + `Idempotency-Key` header (16–100 chars) + CSRF token → 201 `{data:{payment,order},replayed:false}` or 200 for replay.
+  - Permissions: Explicitly supports `treasurer` role; `organizer` role is also authorized. Ordinary members and volunteers receive 403 `FORBIDDEN`.
+  - Scoped Idempotency: Key is scoped to authenticated staff user ID (`SHA-256(staffId:key)`). Identical retries return original result with `replayed: true`. Reusing key for different order returns 409 `IDEMPOTENCY_CONFLICT`. Modifying payload with same key returns 409 `IDEMPOTENCY_PAYLOAD_MISMATCH`. Simultaneous concurrent requests with same key resolve cleanly without duplicate payment or error.
+  - Transaction handling: Acquires order row lock (`lockOrderForPayment` with `FOR UPDATE`), re-checks status/amount/currency inside the transaction, inserts `payment_records` row with `order_id`, and transitions order from `pending` to `paid` (`confirmOrderPayment`) atomically.
+  - Rejection: Rejects cancelled orders (409 `ORDER_CANCELLED`), fulfilled orders (409 `ORDER_FULFILLED`), and already-paid orders (409 `ALREADY_PAID`).
+  - Zero-price orders: Handled honestly with `amountMinor: 0` and method `zero_price`.
+  - Stock invariant: Inventory was allocated and deducted at checkout; stock is NOT deducted again during payment confirmation.
+  - Sanitization: Internal idempotency keys and hashes are stripped from API response.
 
 ### Dharmik: expenses/finance (planned — not yet implemented)
 
