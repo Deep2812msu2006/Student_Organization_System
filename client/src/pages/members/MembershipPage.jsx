@@ -14,6 +14,58 @@ function formatMemberRef(id) {
   return typeof id === 'string' ? `SKY-${id.slice(0, 6).toUpperCase()}` : id;
 }
 
+function TicketIcon(props) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" fill="currentColor" fillOpacity="0.14" />
+      <path d="M13 5v2" />
+      <path d="M13 11v2" />
+      <path d="M13 17v2" />
+      <circle cx="8" cy="12" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ShoppingBagIcon(props) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" fill="currentColor" fillOpacity="0.14" />
+      <path d="M3 6h18" />
+      <path d="M16 10a4 4 0 0 1-8 0" />
+    </svg>
+  );
+}
+
+function LandmarkIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polygon points="12 2 2 7 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
+      <line x1="6" y1="7" x2="6" y2="17" />
+      <line x1="18" y1="7" x2="18" y2="17" />
+    </svg>
+  );
+}
+
+function NfcWaveIcon(props) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M8.5 16.5a5 5 0 0 1 0-9" />
+      <path d="M12 19a8.5 8.5 0 0 1 0-14" />
+      <path d="M15.5 21.5a12 12 0 0 1 0-19" />
+    </svg>
+  );
+}
+
+function SparkleIcon(props) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+    </svg>
+  );
+}
+
 // @edit:MEMBERSHIP_PROFILE — modern digital wallet pass and perks dashboard
 export default function MembershipPage() {
   const { user } = useAuth();
@@ -129,7 +181,9 @@ export default function MembershipPage() {
           <article className="member-pass" aria-label="Digital Membership Card">
             <div className="pass-top">
               <div className="pass-brand-badge">
-                <div className="pass-brand-icon" aria-hidden="true">🏛️</div>
+                <div className="pass-brand-icon" aria-hidden="true">
+                  <LandmarkIcon style={{ color: '#6ee7b7' }} />
+                </div>
                 <div>
                   <span className="pass-brand-text">Skyline Student Club</span>
                 </div>
@@ -142,7 +196,9 @@ export default function MembershipPage() {
 
             <div className="pass-chip-row">
               <div className="pass-chip" aria-hidden="true" />
-              <span className="pass-nfc" aria-hidden="true">📶</span>
+              <span className="pass-nfc" aria-hidden="true">
+                <NfcWaveIcon style={{ color: 'rgba(255,255,255,0.7)' }} />
+              </span>
             </div>
 
             <div className="pass-member-info">
@@ -184,14 +240,28 @@ export default function MembershipPage() {
           {/* Membership Benefits Dashboard */}
           <article className="form-card benefits-card">
             <div className="benefits-header">
-              <h2>✨ Member Privileges</h2>
+              <h2>
+                <SparkleIcon style={{ color: '#0f766e', marginRight: '6px' }} />
+                Member Privileges
+              </h2>
               <button type="button" className="refresh-btn" onClick={load} title="Refresh membership status">
                 <span>⟳</span> Refresh
               </button>
             </div>
 
             <div className={`benefits-status-banner ${profile.benefits.eligible ? 'active' : 'inactive'}`}>
-              <span style={{ fontSize: '1.2rem' }}>{profile.benefits.eligible ? '🎉' : '⏳'}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', background: profile.benefits.eligible ? '#d1fae5' : '#fef3c7', color: profile.benefits.eligible ? '#059669' : '#d97706', flexShrink: 0 }}>
+                {profile.benefits.eligible ? (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                )}
+              </span>
               <span>
                 {profile.benefits.eligible
                   ? 'Your membership is active! All exclusive discounts are unlocked.'
@@ -202,7 +272,9 @@ export default function MembershipPage() {
             <div className="perks-tiles-grid">
               <div className="perk-tile">
                 <div className="perk-tile-top">
-                  <div className="perk-icon-wrap events" aria-hidden="true">🎟️</div>
+                  <div className="perk-icon-wrap events" aria-hidden="true">
+                    <TicketIcon />
+                  </div>
                   <span className="perk-pct-badge">{profile.benefits.ticketDiscountPct}%</span>
                 </div>
                 <div>
@@ -218,7 +290,9 @@ export default function MembershipPage() {
 
               <div className="perk-tile">
                 <div className="perk-tile-top">
-                  <div className="perk-icon-wrap merch" aria-hidden="true">🛍️</div>
+                  <div className="perk-icon-wrap merch" aria-hidden="true">
+                    <ShoppingBagIcon />
+                  </div>
                   <span className="perk-pct-badge">{profile.benefits.merchDiscountPct}%</span>
                 </div>
                 <div>

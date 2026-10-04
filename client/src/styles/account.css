@@ -385,22 +385,38 @@
 }
 
 .perk-icon-wrap {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  font-size: 1.25rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
 .perk-icon-wrap.events {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.12);
 }
 
 .perk-icon-wrap.merch {
-  background: #fef3c7;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
   color: #b45309;
+  border: 1px solid #fde68a;
+  box-shadow: 0 4px 12px rgba(180, 83, 9, 0.12);
+}
+
+.perk-tile:hover .perk-icon-wrap.events {
+  transform: scale(1.06);
+  box-shadow: 0 6px 16px rgba(22, 101, 52, 0.2);
+}
+
+.perk-tile:hover .perk-icon-wrap.merch {
+  transform: scale(1.06);
+  box-shadow: 0 6px 16px rgba(180, 83, 9, 0.2);
 }
 
 .perk-pct-badge {
