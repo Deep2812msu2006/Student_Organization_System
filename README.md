@@ -131,29 +131,85 @@ That is exactly what **Skyline** delivers.
 
 ## 📸 UI Screenshots & Platform Walkthrough
 
-### 1. Volunteer Expense Claims & Reimbursements (`/expenses`)
-*Track claims across Pending, Approved, and Reimbursed states with attached receipt PDF previews and treasurer approvals.*
-![Expense Claims Overview](docs/screenshots/01_expenses_dashboard.png)
+### 1. Home Page & Welcome Command Center (`/`)
+*Dynamic welcome hero highlighting association mission, upcoming flagship events, quick-access portal shortcuts, and active club announcements.*
+![Home Landing Hero](docs/screenshots/01_home_landing.png)
 
-### 2. Multi-Stage Order Lifecycle Management (`/orders`)
-*Filter orders by status with thumbnails, unit price snapshots, and live UPI checkout actions for pending purchases.*
-![Orders Management](docs/screenshots/02_orders_management.png)
+### 2. Campus Events Directory & Real-Time Seat Counters (`/events`)
+*Searchable event catalog with date filtering, category badges, dynamic pricing for members vs. public, and atomic real-time seat availability gauges.*
+![Events Catalog](docs/screenshots/02_events_catalog.png)
 
-### 3. Detailed Order Inspection & Campus Pickup (`/orders/:id`)
-*Interactive pickup status badge showing Student Union collection hours and itemized price breakdown.*
-![Order Detail View](docs/screenshots/03_order_detail.png)
+### 3. Event Details, Agenda & Tiered Ticket Booking (`/events/:id`)
+*In-depth event showcase featuring full schedule timeline, venue location, capacity progress bar, and instant booking reservation modal.*
+![Event Details View](docs/screenshots/03_event_details.png)
 
-### 4. Interactive Student Membership Portal (`/membership`)
-*Live membership status, digital membership card, renewal timelines, and member privileges.*
-![Membership Portal](docs/screenshots/04_membership_portal.png)
+### 4. Student Tickets Hub with Dynamic QR Admission Passes (`/tickets`)
+*Personal ticket wallet displaying confirmed reservations, formatted venue dates, and instant high-contrast QR admission codes generated via HMAC secrets.*
+![My Tickets Hub](docs/screenshots/04_my_tickets.png)
 
-### 5. Financial Treasury & Executive Ledger (`/finance`)
-*Live category breakdowns for dues, events, and store merchandise alongside approved liabilities and net cash balance.*
-![Finance Treasury](docs/screenshots/05_finance_treasury.png)
+### 5. Staff Check-In Terminal & Live Attendance Dashboard (`/staff/checkin`)
+*High-speed organizer admission kiosk featuring live attendee metrics (Confirmed, Checked-In, Pending), real-time progress bar, and 1-click token scan check-in.*
+![Staff Check-In Kiosk](docs/screenshots/05_staff_checkin_kiosk.png)
 
-### 6. Official Club Merchandise Store (`/shop`)
-*Multi-category apparel, accessories, and collectibles catalog with real-time stock availability and size variants.*
+### 6. Official Club Merchandise Catalog & Product Grid (`/shop`)
+*Curated store offering custom hoodies, stainless steel tumblers, backpacks, and accessories with active member 5% discounts applied.*
 ![Merchandise Shop](docs/screenshots/06_merchandise_shop.png)
+
+### 7. Product Inspection, Variant Selection & Stock Indicator (`/shop/:id`)
+*Interactive item showcase with multi-photo studio views, size/variant selector buttons, and live stock countdown preventing overselling.*
+![Product Detail View](docs/screenshots/07_product_detail.png)
+
+### 8. Four-Stage Order Lifecycle Management (`/orders`)
+*Itemized order history with status tabs (`All`, `Awaiting Payment`, `Paid & Confirmed`, `Ready / Collected`, `Cancelled`) and live UPI payment checkout button.*
+![Orders Management](docs/screenshots/08_orders_management.png)
+
+### 9. Order Detail, Itemized Snapshot & Campus Pickup Desk Info (`/orders/:id`)
+*Comprehensive receipt with unit price freeze snapshots, payment method audit tags, and physical pickup desk schedule at Student Union Desk B.*
+![Order Detail View](docs/screenshots/09_order_detail.png)
+
+### 10. Inventory Health Monitor & Orders Pickup Desk (`/staff/inventory`)
+*Organizer warehouse control panel displaying stock health statuses (`Healthy`, `Low Stock`, `Out of Stock`) and a dedicated desk to mark orders as fulfilled.*
+![Staff Inventory and Pickup Desk](docs/screenshots/10_staff_inventory.png)
+
+### 11. Student Membership Portal & Digital Identity Card (`/membership`)
+*Executive member identity portal featuring digital club membership card, active privileges checklist, dues status banner, and billing renewal dates.*
+![Membership Portal](docs/screenshots/11_membership_portal.png)
+
+### 12. Staff Member Directory & Enrollment Management (`/members`)
+*Administrative student registry detailing student names, university emails, join dates, and active vs. expired membership statuses.*
+![Staff Member Directory](docs/screenshots/12_member_directory.png)
+
+### 13. Membership Dues Verification & Payout Confirmation Desk (`/staff/dues`)
+*Treasurer audit queue allowing one-click verification and activation of pending membership dues submitted via cash or direct bank transfer.*
+![Staff Dues Verification](docs/screenshots/13_staff_dues.png)
+
+### 14. Manual Order & Ticket Payment Evidence Desk (`/staff/payments`)
+*Finance verification terminal matching offline bank UTR numbers and cash receipts to pending merchandise orders and event ticket reservations.*
+![Staff Payments Desk](docs/screenshots/14_staff_payments.png)
+
+### 15. Financial Treasury, Revenue Breakdown & Operating Surplus (`/finance`)
+*Live double-entry treasury dashboard displaying revenue breakdown (Dues vs Events vs Merchandise), reimbursed expenses, approved liabilities, and net surplus.*
+![Finance Treasury Dashboard](docs/screenshots/15_finance_treasury.png)
+
+### 16. Volunteer Task Board & Milestone Kanban (`/tasks`)
+*Collaborative volunteer coordination board organizing event-linked duties across `To Do`, `In Progress`, and `Done` with target completion dates.*
+![Volunteer Tasks Board](docs/screenshots/16_volunteer_tasks.png)
+
+### 17. Volunteer Expense Claims, Receipt Uploads & Approvals (`/expenses`)
+*Auditable reimbursement system where students submit expense receipts, treasurers approve claims, and disbursements are recorded with reference keys.*
+![Expense Claims Overview](docs/screenshots/17_expense_claims.png)
+
+### 18. Community Announcements Board (`/announcements`)
+*Official association bulletin publishing public updates, event keynotes, and member-exclusive opportunity notices.*
+![Community Announcements](docs/screenshots/18_announcements.png)
+
+### 19. System Message Outbox & Notification Dispatch Logs (`/staff/mail`)
+*Durable outbox monitoring automated event booking confirmations, merchandise pickup notices, and volunteer briefing schedules.*
+![Mail Outbox Logs](docs/screenshots/19_mail_outbox.png)
+
+### 20. Global Association Search & Permission-Filtered Explorer (`/search`)
+*Instant full-text explorer allowing students and staff to search across events, catalog products, announcements, and tasks with least-privilege scoping.*
+![Global Search Explorer](docs/screenshots/20_search_explorer.png)
 
 ---
 

@@ -24,6 +24,7 @@
     "reminders:preview": "node server/jobs/reminders.js"
   },
   "devDependencies": {
-    "concurrently": "^10.0.5"
+    "concurrently": "^10.0.5",
+    "puppeteer-core": "^25.12.0"
   }
 }
