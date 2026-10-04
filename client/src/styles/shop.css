@@ -523,13 +523,13 @@
 .order-step-line {
   flex: 1;
   min-width: 24px;
-  height: 2px;
-  background: #e2e8f0;
+  height: 0;
+  border-top: 2px dashed #cbd5e1;
   margin: 0 0.75rem;
 }
 
 .order-step-line.active {
-  background: #10b981;
+  border-top: 2px solid #10b981;
 }
 
 /* Order Items Preview */

@@ -162,7 +162,7 @@ export default function OrdersPage() {
                     <div className={`order-step-line ${isFulfilled ? 'active' : ''}`} />
                     <div className={`order-step ${isFulfilled ? 'completed' : ''}`}>
                       <span className="order-step-dot">{isFulfilled ? '✓' : '3'}</span>
-                      <span>{isFulfilled ? 'Collected' : 'Campus Pickup'}</span>
+                      <span>{isFulfilled ? 'Collected' : 'Awaiting Pickup'}</span>
                     </div>
                   </div>
                 ) : (
