@@ -225,12 +225,12 @@ export default function OrderDetailPage() {
             <div className={`order-step-line ${isPaid ? 'active' : ''}`} />
             <div className={`order-step ${isPaid ? 'completed' : 'current'}`}>
               <span className="order-step-dot">{isPaid ? '✓' : '2'}</span>
-              <span>{isPaid ? 'Payment Confirmed' : 'Awaiting Staff Payment Confirmation'}</span>
+              <span>{isPaid ? 'Payment Confirmed' : 'Awaiting Payment'}</span>
             </div>
-            <div className={`order-step-line ${isPaid ? 'active' : ''}`} />
-            <div className={`order-step ${isFulfilled ? 'completed' : isPaid ? 'current' : ''}`}>
-              <span className="order-step-dot">{isFulfilled ? '✓' : isPaid ? '📦' : '3'}</span>
-              <span>{isFulfilled ? 'Collected & Complete' : isPaid ? 'Awaiting Pickup (Ready)' : 'Awaiting Pickup'}</span>
+            <div className={`order-step-line ${isFulfilled ? 'active' : ''}`} />
+            <div className={`order-step ${isFulfilled ? 'completed' : ''}`}>
+              <span className="order-step-dot">{isFulfilled ? '✓' : '3'}</span>
+              <span>{isFulfilled ? 'Handed Over & Collected' : 'Campus Pickup & Collection'}</span>
             </div>
           </div>
         )}

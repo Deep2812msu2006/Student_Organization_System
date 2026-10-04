@@ -158,12 +158,12 @@ export default function OrdersPage() {
                       <div className={`order-step-line ${isPaid ? 'active' : ''}`} />
                       <div className={`order-step ${isPaid ? 'completed' : 'current'}`}>
                         <span className="order-step-dot">{isPaid ? '✓' : '2'}</span>
-                        <span>{isPaid ? 'Payment Confirmed' : 'Awaiting Staff Payment Confirmation'}</span>
+                        <span>{isPaid ? 'Payment Confirmed' : 'Awaiting Payment'}</span>
                       </div>
-                      <div className={`order-step-line ${isPaid ? 'active' : ''}`} />
-                      <div className={`order-step ${isFulfilled ? 'completed' : isPaid ? 'current' : ''}`}>
-                        <span className="order-step-dot">{isFulfilled ? '✓' : isPaid ? '📦' : '3'}</span>
-                        <span>{isFulfilled ? 'Collected' : isPaid ? 'Awaiting Pickup (Ready)' : 'Awaiting Pickup'}</span>
+                      <div className={`order-step-line ${isFulfilled ? 'active' : ''}`} />
+                      <div className={`order-step ${isFulfilled ? 'completed' : ''}`}>
+                        <span className="order-step-dot">{isFulfilled ? '✓' : '3'}</span>
+                        <span>{isFulfilled ? 'Handed Over & Collected' : 'Campus Pickup & Collection'}</span>
                       </div>
                     </div>
 
@@ -182,9 +182,9 @@ export default function OrdersPage() {
                           gap: '0.5rem',
                         }}
                       >
-                        <span style={{ fontSize: '1rem' }}>📍</span>
+                        <span style={{ fontSize: '1rem' }}>✓</span>
                         <span>
-                          <strong>Ready for Campus Pickup:</strong> Present <strong>Order #{shortOrderId(o.id)}</strong> at the Student Association Merchandise Desk to collect your items.
+                          <strong>Payment Confirmed:</strong> Present <strong>Order #{shortOrderId(o.id)}</strong> at the Student Association Merchandise Desk when collecting your items.
                         </span>
                       </div>
                     )}
