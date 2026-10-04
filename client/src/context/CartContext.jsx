@@ -5,7 +5,8 @@ const CartContext = createContext(null);
 const LEGACY_STORAGE_KEY = 'skyline_merch_cart';
 
 export function CartProvider({ children }) {
-  const { user } = useAuth();
+  const auth = useAuth();
+  const user = auth?.user;
   const userId = user?.id || null;
   const storageKey = userId ? `skyline_merch_cart_${userId}` : 'skyline_merch_cart_guest';
 
