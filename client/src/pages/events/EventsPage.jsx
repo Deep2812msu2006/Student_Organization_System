@@ -127,7 +127,7 @@ function EventCard({ event, manage, index = 0 }) {
         )}
 
         <Link
-          className={`button ${isBooked ? 'button-booked' : 'button-secondary'}`}
+          className={`button ${!manage && isBooked ? 'button-booked' : 'button-secondary'}`}
           to={manage ? `/events/${event.id}/edit` : `/events/${event.id}`}
         >
           {manage
