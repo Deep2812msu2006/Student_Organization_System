@@ -18,8 +18,8 @@ const queries={
  products:`SELECT p.id,p.created_at sort_key,p.name||' '||p.description||' '||p.category search_text,p.name,p.description,p.category,
  COALESCE((SELECT jsonb_agg(jsonb_build_object('id',v.id,'name',v.name,'priceMinor',v.price_minor,'currency',v.currency,'stockQuantity',v.stock_quantity) ORDER BY v.price_minor,v.id) FROM product_variants v WHERE v.product_id=p.id AND v.is_active),'[]'::jsonb) variants
  FROM products p CROSS JOIN access a WHERE p.is_published AND (a.category='' OR lower(p.category)=lower(a.category))`,
- announcements:`SELECT x.id,x.created_at sort_key,x.title||' '||x.body search_text,x.title,x.body,x.audience,x.status,x.created_at AS "createdAt"
- FROM announcements x CROSS JOIN access a WHERE a.organizer OR (x.status='published' AND (x.audience='public' OR a.uid IS NOT NULL))`,
+ announcements:`SELECT x.id,x.created_at sort_key,x.title||' '||x.body search_text,x.title,x.body,x.audience,x.status,x.created_at AS "createdAt",COALESCE(u.name, 'Club Staff') AS "authorName"
+ FROM announcements x LEFT JOIN users u ON u.id=x.author_id CROSS JOIN access a WHERE a.organizer OR (x.status='published' AND (x.audience='public' OR a.uid IS NOT NULL))`,
  tasks:`SELECT t.id,t.created_at sort_key,t.title||' '||t.description||' '||u.name||' '||t.status search_text,t.title,t.description,t.status,t.due_at AS "dueAt",t.assignee_id AS "assigneeId",u.name AS "assigneeName"
  FROM volunteer_tasks t JOIN users u ON u.id=t.assignee_id CROSS JOIN access a WHERE a.organizer OR t.assignee_id=a.uid`,
  mail:`SELECT o.id,o.created_at sort_key,u.email||' '||o.subject||' '||o.status search_text,u.email,o.subject,o.body,o.status,o.created_at AS "createdAt"
