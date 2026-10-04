@@ -12,14 +12,14 @@ export default function ExpensesPage() {
   const { user } = useAuth();
   const staff = user?.roles.some((r) => ['organizer', 'treasurer'].includes(r));
   const list = useListState();
-  const r = useResource('/browse/expenses?' + list.query);
+  const activeFilter = list.filter, setActiveFilter = list.setFilter;
+  const r = useResource('/browse/expenses?' + list.query + '&category=' + encodeURIComponent(activeFilter));
 
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all');
   const [selectedFileName, setSelectedFileName] = useState('');
   const fileInputRef = useRef(null);
   const keys = useRef({});
@@ -116,6 +116,7 @@ export default function ExpensesPage() {
       description="Submit event and operational expense receipts, track review approvals, and monitor payment disbursements."
       resource={r}
     >
+      <p className="muted">Counters show this page; filters search all matching records.</p>
       {/* Dashboard Overview Metrics */}
       <div className="expenses-dashboard-bar">
         <div className="expenses-stats-row">

@@ -10,7 +10,8 @@ import ModulePanel from '../../components/ModulePanel.jsx';
 export default function TasksPage() {
   const { user } = useAuth();
   const list = useListState();
-  const r = useResource('/browse/tasks?' + list.query);
+  const activeFilter = list.filter, setActiveFilter = list.setFilter;
+  const r = useResource('/browse/tasks?' + list.query + '&category=' + encodeURIComponent(activeFilter));
   const staff = user?.roles.includes('organizer');
 
   const [people, setPeople] = useState([]);
@@ -18,7 +19,6 @@ export default function TasksPage() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all');
 
   useEffect(() => {
     if (staff) {
@@ -81,6 +81,7 @@ export default function TasksPage() {
       description="Track campus event assignments, team responsibilities and operational progress."
       resource={r}
     >
+      <p className="muted">Counters show this page; filters search all matching records.</p>
       {/* Dashboard Metrics Bar */}
       <div className="tasks-dashboard-bar">
         <div className="tasks-stats-row">

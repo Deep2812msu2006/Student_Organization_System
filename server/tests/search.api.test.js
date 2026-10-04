@@ -62,4 +62,15 @@ test('search and pagination apply permissions before counting, with stable pages
  const literal=await guest('/search?q='+encodeURIComponent("' OR 1=1 --"));assert.equal(literal.status,200);assert.equal(literal.pagination.total,0);
  const wildcard=await guest('/browse/announcements?q='+encodeURIComponent(tag+'%'));assert.equal(wildcard.pagination.total,0);
  });
+ await t.test('status filters find records beyond page one before counting and paging',async()=>{
+ await pool.query("INSERT INTO volunteer_tasks(title,assignee_id,created_by,status,created_at) SELECT $1||i,$2,$3,CASE WHEN i=1 THEN 'done' ELSE 'todo' END,now()+i*interval '1 second' FROM generate_series(1,14)i",[tag+' paged-task-',member.id,org.id]);
+ const done=await member.call('/browse/tasks?q='+tag+'%20paged-task-&category=done');
+ assert.equal(done.status,200);assert.equal(done.pagination.total,1);assert.equal(done.data[0].status,'done');
+ const todo=await member.call('/browse/tasks?q='+tag+'%20paged-task-&category=todo&pageSize=12');
+ assert.equal(todo.pagination.total,13);assert.equal(todo.data.length,12);
+ assert.equal((await other.call('/browse/tasks?q='+tag+'%20paged-task-&category=done')).pagination.total,0);
+ assert.equal((await org.call('/browse/announcements?q='+tag+'&category=drafts')).pagination.total,1);
+ assert.equal((await guest('/browse/announcements?q='+tag+'&category=drafts')).pagination.total,0);
+ });
+
 });

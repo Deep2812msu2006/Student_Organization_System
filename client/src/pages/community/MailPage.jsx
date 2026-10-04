@@ -8,12 +8,12 @@ import ModulePanel from '../../components/ModulePanel.jsx';
 // @edit:MAIL_PREFERENCES — modern notification dispatcher, local email previews & subscriber controls
 export default function MailPage({ staff = false }) {
   const list = useListState();
-  const r = useResource(staff ? '/browse/mail?' + list.query : '/mail/preferences');
+  const activeFilter = list.filter, setActiveFilter = list.setFilter;
+  const r = useResource(staff ? '/browse/mail?' + list.query + '&category=' + encodeURIComponent(activeFilter) : '/mail/preferences');
 
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'previewed' | 'queued'
   const [selectedMail, setSelectedMail] = useState(null);
 
   async function act(path, body, method = 'POST', successMsg) {

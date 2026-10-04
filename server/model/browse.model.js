@@ -46,11 +46,18 @@ export const publicResources=new Set(['events','products','announcements']);
 export const staffResources=new Set(['manage-events','mail','members','inventory','fulfillment']);
 export const financeResources=new Set(['dues','pending-orders','pending-registrations']);
 export const resourceNames=Object.keys(queries);
+// @rule:FILTER_BEFORE_PAGING — fixed predicates only; category values remain SQL parameters.
+const browseFilters={
+ tasks:"status=$5",expenses:"status=$5",mail:"status=$5",
+ announcements:"(($5='drafts' AND status='draft') OR ($5 IN ('public','members') AND audience=$5))",
+ inventory:"(($5='healthy' AND stock>10) OR ($5='low' AND stock BETWEEN 1 AND 10) OR ($5='out' AND stock=0))"
+};
 export async function browse(db,resource,user,{q='',category='',page=1,pageSize=12}={}){
  const sql=queries[resource];if(!sql)throw new Error('Unsupported browse resource.');
+ const filter=browseFilters[resource] ? ` AND ($5 IN ('','all') OR (${browseFilters[resource]}))` : '';
  const organizer=!!user?.roles.includes('organizer'),finance=organizer||!!user?.roles.includes('treasurer');
  const {rows}=await db.query(`WITH access AS(SELECT $1::uuid uid,$2::boolean organizer,$3::boolean finance,$5::text category),
- filtered AS(SELECT * FROM (${sql}) x WHERE strpos(lower(search_text||' '||id::text),lower($4::text))>0),
+ filtered AS(SELECT * FROM (${sql}) x WHERE strpos(lower(search_text||' '||id::text),lower($4::text))>0${filter}),
  paged AS(SELECT * FROM filtered ORDER BY sort_key DESC,id ASC LIMIT $6 OFFSET $7)
  SELECT (SELECT count(*)::int FROM filtered) total,
  COALESCE((SELECT jsonb_agg(to_jsonb(p)-'search_text'-'sort_key' ORDER BY sort_key DESC,id ASC) FROM paged p),'[]'::jsonb) data`,

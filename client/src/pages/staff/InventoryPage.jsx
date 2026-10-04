@@ -9,13 +9,13 @@ import ModulePanel from '../../components/ModulePanel.jsx';
 // @edit:INVENTORY_UI — modern inventory tracking and collection desk
 export default function InventoryPage() {
   const list = useListState();
+  const stockFilter = list.filter, setStockFilter = list.setFilter;
   const collection = useListState('collection');
-  const r = useResource('/browse/inventory?' + list.query);
+  const r = useResource('/browse/inventory?' + list.query + '&category=' + encodeURIComponent(stockFilter));
   const orders = useResource('/browse/fulfillment?' + collection.query);
   const catalog = useResource('/staff/inventory');
 
   const [activeTab, setActiveTab] = useState('stock'); // 'stock' | 'fulfillment'
-  const [stockFilter, setStockFilter] = useState('all'); // 'all' | 'healthy' | 'low' | 'out'
   const [showComposer, setShowComposer] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -77,6 +77,7 @@ export default function InventoryPage() {
       description="Track warehouse merchandise stock levels, apply inventory shipments, and record customer collection."
       resource={r}
     >
+      <p className="muted">Stock counters show this page; filters search all inventory.</p>
       {/* Top Level KPI Metrics */}
       <div className="inventory-dashboard-bar">
         <div className="inventory-stats-row">
@@ -147,7 +148,7 @@ export default function InventoryPage() {
               >
                 ⚠️ Low Stock ({lowStockCount})
               </button>
-              {outOfStockCount > 0 && (
+              {(
                 <button
                   type="button"
                   className={`inventory-filter-pill ${stockFilter === 'out' ? 'active' : ''}`}
@@ -406,13 +407,40 @@ function InventoryCard({ item, busy, onAdjust }) {
   const stock = Number(item.stock) || 0;
   const statusTier = stock > 10 ? 'healthy' : stock > 0 ? 'low' : 'out';
   const [customDelta, setCustomDelta] = useState('');
+  const [cardNotice, setCardNotice] = useState('');
+  const [cardBusy, setCardBusy] = useState(false);
+
+  const deltaNum = parseInt(customDelta, 10);
+  const hasValidDelta = !isNaN(deltaNum) && deltaNum !== 0;
+  const projectedStock = hasValidDelta ? Math.max(0, stock + deltaNum) : stock;
+
+  function stepDelta(amount) {
+    const current = parseInt(customDelta, 10) || 0;
+    const next = current + amount;
+    setCustomDelta(next === 0 ? '' : String(next));
+  }
+
+  async function handleApply(deltaToApply) {
+    const d = typeof deltaToApply === 'number' ? deltaToApply : deltaNum;
+    if (isNaN(d) || d === 0) return;
+    setCardBusy(true);
+    setCardNotice('');
+    try {
+      const ok = await onAdjust(d);
+      if (ok !== false) {
+        setCustomDelta('');
+        setCardNotice(`✓ Updated! ${d > 0 ? `+${d}` : d} units (New: ${Math.max(0, stock + d)})`);
+        setTimeout(() => setCardNotice(''), 4000);
+      }
+    } finally {
+      setCardBusy(false);
+    }
+  }
 
   function handleCustomSubmit(e) {
     e.preventDefault();
-    const d = parseInt(customDelta, 10);
-    if (!isNaN(d) && d !== 0) {
-      onAdjust(d);
-      setCustomDelta('');
+    if (hasValidDelta) {
+      handleApply(deltaNum);
     }
   }
 
@@ -456,68 +484,110 @@ function InventoryCard({ item, busy, onAdjust }) {
 
         {/* Quick Steppers & Adjustment Form */}
         <div className="inventory-adjust-section">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
             <span className="inventory-adjust-label">Quick Stock Adjust</span>
-            <div className="inventory-quick-steppers">
+            {hasValidDelta && (
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: deltaNum > 0 ? '#16a34a' : '#dc2626' }}>
+                Preview: {stock} → <strong>{projectedStock}</strong> ({deltaNum > 0 ? `+${deltaNum}` : deltaNum})
+              </span>
+            )}
+          </div>
+
+          <div className="inventory-quick-steppers" style={{ marginBottom: '0.5rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              disabled={busy || cardBusy}
+              className="inventory-step-btn add"
+              onClick={() => stepDelta(5)}
+              title="Add 5 units to delta"
+            >
+              +5
+            </button>
+            <button
+              type="button"
+              disabled={busy || cardBusy}
+              className="inventory-step-btn add"
+              onClick={() => stepDelta(1)}
+              title="Add 1 unit to delta"
+            >
+              +1
+            </button>
+            <button
+              type="button"
+              disabled={busy || cardBusy || (stock + (parseInt(customDelta, 10) || 0) <= 0)}
+              className="inventory-step-btn sub"
+              onClick={() => stepDelta(-1)}
+              title="Deduct 1 unit from delta"
+            >
+              −1
+            </button>
+            <button
+              type="button"
+              disabled={busy || cardBusy || (stock + (parseInt(customDelta, 10) || 0) < 5)}
+              className="inventory-step-btn sub"
+              onClick={() => stepDelta(-5)}
+              title="Deduct 5 units from delta"
+            >
+              −5
+            </button>
+            {customDelta !== '' && (
               <button
                 type="button"
-                disabled={busy}
-                className="inventory-step-btn add"
-                onClick={() => onAdjust(5)}
-                title="Add 5 units received"
+                disabled={busy || cardBusy}
+                className="inventory-step-btn"
+                style={{ background: '#f1f5f9', color: '#64748b', borderColor: '#cbd5e1' }}
+                onClick={() => setCustomDelta('')}
+                title="Reset delta"
               >
-                +5
+                Clear
               </button>
-              <button
-                type="button"
-                disabled={busy}
-                className="inventory-step-btn add"
-                onClick={() => onAdjust(1)}
-                title="Add 1 unit"
-              >
-                +1
-              </button>
-              <button
-                type="button"
-                disabled={busy || stock <= 0}
-                className="inventory-step-btn sub"
-                onClick={() => onAdjust(-1)}
-                title="Deduct 1 unit"
-              >
-                −1
-              </button>
-              <button
-                type="button"
-                disabled={busy || stock < 5}
-                className="inventory-step-btn sub"
-                onClick={() => onAdjust(-5)}
-                title="Deduct 5 units"
-              >
-                −5
-              </button>
-            </div>
+            )}
           </div>
 
           <form onSubmit={handleCustomSubmit} className="inventory-adjust-input-row" style={{ margin: 0 }}>
             <input
               type="number"
-              min="-100000"
+              min={-stock}
               max="100000"
               step="1"
-              disabled={busy}
+              disabled={busy || cardBusy}
               placeholder="± Delta"
               value={customDelta}
               onChange={(e) => setCustomDelta(e.target.value)}
-              required
             />
             <button
-              className="button button-secondary"
-              style={{ padding: '0.45rem 0.8rem', fontSize: '0.8rem' }}
-              disabled={busy || !customDelta || parseInt(customDelta, 10) === 0}
+              type="submit"
+              className={`button ${hasValidDelta ? 'button-primary' : 'button-secondary'}`}
+              style={{
+                padding: '0.45rem 0.8rem',
+                fontSize: '0.8rem',
+                fontWeight: hasValidDelta ? 700 : 500,
+                background: hasValidDelta ? (deltaNum > 0 ? '#163c34' : '#b91c1c') : undefined,
+                color: hasValidDelta ? '#ffffff' : undefined,
+                transition: 'all 0.2s ease',
+              }}
+              disabled={busy || cardBusy || !hasValidDelta}
             >
-              {busy ? 'Updating…' : 'Apply Adjustment'}
+              {cardBusy ? 'Updating…' : hasValidDelta ? `✓ Apply ${deltaNum > 0 ? `+${deltaNum}` : deltaNum}` : 'Apply Adjustment'}
             </button>
           </form>
+
+          {cardNotice && (
+            <div style={{
+              marginTop: '0.5rem',
+              padding: '0.35rem 0.6rem',
+              background: '#dcfce7',
+              color: '#15803d',
+              borderRadius: '6px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}>
+              <span>🎉</span> {cardNotice}
+            </div>
+          )}
         </div>
       </div>
     </article>

@@ -9,7 +9,7 @@ export function useListState(prefix=''){
  const pageSize=[12,24,48].includes(rawSize)?rawSize:12;
  const q=(params.get(name('q'))||'').slice(0,120);
  function update(values){setParams(prev=>{const next=new URLSearchParams(prev);for(const[k,v]of Object.entries(values)){if(v===''||v===null)next.delete(name(k));else next.set(name(k),String(v));}return next;});}
- return {q,page,pageSize,search:q=>update({q:q.trim(),page:1}),setPage:page=>update({page}),setPageSize:pageSize=>update({pageSize,page:1}),
+ return {q,page,pageSize,filter:params.get(name('filter'))||'all',setFilter:filter=>update({filter,page:1}),search:q=>update({q:q.trim(),page:1}),setPage:page=>update({page}),setPageSize:pageSize=>update({pageSize,page:1}),
  query:new URLSearchParams({q,page:String(page),pageSize:String(pageSize)}).toString()};
 }
 export function useClampPage(list,pagination,loading){

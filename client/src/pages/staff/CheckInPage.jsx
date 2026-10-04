@@ -141,6 +141,10 @@ export default function CheckInPage() {
               return (
                 <div
                   key={ev.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isSelected}
+                  onKeyDown={(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.currentTarget.click();}}}
                   className={`checkin-event-card ${isSelected ? 'active' : ''}`}
                   onClick={() => {
                     setEventId(ev.id);
@@ -199,7 +203,7 @@ export default function CheckInPage() {
 
       {/* Step 2: Scanner Terminal & Live Attendance Dashboard */}
       {selectedEvent && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem', marginTop: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '1.5rem', marginTop: '1.5rem' }}>
           {/* Scanner Console */}
           <div className="checkin-terminal-card">
             <div className="checkin-terminal-header">
@@ -220,7 +224,7 @@ export default function CheckInPage() {
                   📷
                 </span>
                 <strong style={{ display: 'block', fontSize: '0.98rem', color: '#0f172a' }}>
-                  Scan Ticket QR / Barcode
+                  Enter Ticket Admission Code
                 </strong>
                 <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
                   Or enter admission token starting with <code>sky1_</code>
@@ -228,6 +232,7 @@ export default function CheckInPage() {
               </div>
 
               <input
+                aria-label="Admission Code"
                 ref={tokenInput}
                 type="text"
                 value={ticketToken}

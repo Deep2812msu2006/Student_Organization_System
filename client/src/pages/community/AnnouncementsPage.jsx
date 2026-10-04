@@ -11,14 +11,14 @@ import { date } from '../../utils/format.js';
 export default function AnnouncementsPage() {
   const { user } = useAuth();
   const list = useListState();
-  const r = useResource('/browse/announcements?' + list.query);
+  const activeFilter = list.filter, setActiveFilter = list.setFilter;
+  const r = useResource('/browse/announcements?' + list.query + '&category=' + encodeURIComponent(activeFilter));
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all');
 
   const staff = user?.roles.includes('organizer');
 

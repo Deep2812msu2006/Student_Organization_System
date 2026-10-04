@@ -2899,3 +2899,8 @@
 
 
 
+
+/* @edit:MOBILE_TABLES — contain wide member tables without stretching the page. */
+.module-page { min-width: 0; }
+.module-page .table-scroll { max-width: 100%; min-width: 0; overflow-x: auto; }
+.module-page .table-scroll table { width: 100%; }
