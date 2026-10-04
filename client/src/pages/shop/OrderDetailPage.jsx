@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../services/api.js';
-import { money, date } from '../../utils/format.js';
+import { money, date, shortOrderId } from '../../utils/format.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { triggerRazorpayPayment } from '../../utils/razorpay.js';
 import { getProductImage } from '../../utils/productImages.js';
@@ -22,6 +22,7 @@ export default function OrderDetailPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
   const [cancelSuccess, setCancelSuccess] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -172,8 +173,36 @@ export default function OrderDetailPage() {
         <div className="order-header-row">
           <div>
             <p className="eyebrow" style={{ margin: 0 }}>ORDER RECEIPT</p>
-            <h2>Order #{order.id}</h2>
-            <p className="muted" style={{ margin: 0, marginTop: 'var(--space-1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', margin: '4px 0', flexWrap: 'wrap' }}>
+              <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: '#163c34' }}>
+                Order #{shortOrderId(order.id)}
+              </h2>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(order.id);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                title={`Click to copy full ID: ${order.id}`}
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  color: '#64748b',
+                  fontSize: '0.75rem',
+                  fontFamily: 'monospace',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                {copied ? '✓ Copied' : `${order.id.slice(0, 8)}… 📋`}
+              </button>
+            </div>
+            <p className="muted" style={{ margin: 0, fontSize: '0.86rem' }}>
               Placed on {date(order.createdAt)}
             </p>
           </div>

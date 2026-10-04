@@ -4,7 +4,7 @@ import { useListState } from '../../hooks/useListState.js';
 import { useResource } from '../../hooks/useResource.js';
 import { ListSearch, Pagination } from '../../components/ListControls.jsx';
 import ModulePanel from '../../components/ModulePanel.jsx';
-import { money, date } from '../../utils/format.js';
+import { money, date, shortOrderId } from '../../utils/format.js';
 import { getProductImage } from '../../utils/productImages.js';
 
 // @edit:ORDER_STATUS — modern order management UI with item thumbnails, steppers, and filters
@@ -137,7 +137,7 @@ export default function OrdersPage() {
                   <div className="order-title-group">
                     <span className="order-number">
                       <span aria-hidden="true" style={{ fontSize: '1.2rem' }}>📦</span>
-                      Order #{o.id.slice(0, 8)}
+                      Order #{shortOrderId(o.id)}
                     </span>
                     <span className="order-date">
                       <span aria-hidden="true">📅</span>
