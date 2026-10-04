@@ -17,6 +17,7 @@
     "express-session": "^1.19.0",
     "helmet": "^8.3.0",
     "joi": "^18.2.9",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.1",
     "razorpay": "^2.9.8",
     "zod": "^4.6.5"

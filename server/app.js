@@ -3,6 +3,7 @@ import express from 'express';
 import {inventoryRouter} from './routes/inventory.routes.js';
 import {communityRouter} from './routes/community.routes.js';
 import { sessionMiddleware } from './config/session.js';
+import { jwtAuthMiddleware } from './middleware/auth.middleware.js';
 import { memberRouter } from './routes/member.routes.js';
 import helmet from 'helmet';
 import {eventRouter} from './routes/event.routes.js';
@@ -26,6 +27,7 @@ export function createApp(database, config = {}) {
     app.use(
       '/api/v1',
       sessionMiddleware(database.pool, config),
+      jwtAuthMiddleware(database.pool, config),
       eventRouter(database.pool, config),
       memberRouter(database.pool, config),
       checkinRouter(database.pool, config),

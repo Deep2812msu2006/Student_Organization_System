@@ -15,10 +15,10 @@ import { HttpError } from '../utils/httpError.js';
 
 export function memberRouter(pool,config) {
   const router = Router();
-  const auth = authController(pool);
+  const auth = authController(pool, config);
   const limit = rateLimit({ windowMs:15*60*1000, limit:20, standardHeaders:'draft-8', legacyHeaders:false,
     message:{error:{code:'RATE_LIMITED',message:'Too many sign-in attempts. Please try again later.'}} });
-  const userAuth = requireUser(pool);
+  const userAuth = requireUser(pool, config);
   router.use((_req,res,next)=>{res.set('Cache-Control','no-store');next();});
   router.get('/auth/csrf',auth.csrf);
   router.post('/auth/register',requireCsrf,limit,validate(registrationSchema),auth.register);

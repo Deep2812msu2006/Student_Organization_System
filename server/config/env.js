@@ -33,6 +33,8 @@ export function readConfig() {
   if (new Date(Date.UTC(2025,membershipYearEndMonth-1,membershipYearEndDay)).getUTCMonth() !== membershipYearEndMonth-1) throw new Error('Membership year-end must be a valid date every year.');
   return {
     ticketSecret, sessionSecret, production, trustProxy: process.env.TRUST_PROXY === '1',
+    jwtSecret: process.env.JWT_SECRET || sessionSecret || 'skyline-student-org-system-jwt-secret-key-32chars!',
+    jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
     membershipYearEndMonth, membershipYearEndDay,
     host: process.env.HOST || '127.0.0.1', port: integer('PORT', 5000, 1, 65535),
     databaseUrl, poolMax: integer('DB_POOL_MAX', 10, 1, 50),
