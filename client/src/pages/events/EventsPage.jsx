@@ -55,6 +55,8 @@ function EventCard({ event, manage, index = 0 }) {
   const isPast = new Date(event.startsAt) <= new Date();
   const isLowSeats = !manage && !isPast && event.seatsAvailable <= 5;
   const imageUrl = getEventImage(event, index);
+  const isBooked = event.userRegistrationStatus === 'confirmed';
+  const isPending = event.userRegistrationStatus === 'pending';
 
   return (
     <article className="event-card">
@@ -69,6 +71,12 @@ function EventCard({ event, manage, index = 0 }) {
         <span className="event-badge-date">
           📅 {new Date(event.startsAt).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
         </span>
+        {!manage && isBooked && (
+          <span className="event-badge-booked">✓ Confirmed</span>
+        )}
+        {!manage && isPending && (
+          <span className="event-badge-booked pending">⏳ Reserved</span>
+        )}
         <span className={`event-badge-status ${isLowSeats ? 'low' : ''} ${isPast ? 'closed' : ''}`}>
           {manage
             ? event.status.toUpperCase()
@@ -104,11 +112,31 @@ function EventCard({ event, manage, index = 0 }) {
           </div>
         </div>
 
+        {!manage && isBooked && (
+          <div className="event-card-booked-banner">
+            <span>✓ You already booked this event</span>
+            <Link to="/tickets" className="event-card-ticket-link">My Tickets →</Link>
+          </div>
+        )}
+
+        {!manage && isPending && (
+          <div className="event-card-booked-banner pending">
+            <span>⏳ Reserved — Confirmation pending</span>
+            <Link to="/tickets" className="event-card-ticket-link">My Tickets →</Link>
+          </div>
+        )}
+
         <Link
-          className="button button-secondary"
+          className={`button ${isBooked ? 'button-booked' : 'button-secondary'}`}
           to={manage ? `/events/${event.id}/edit` : `/events/${event.id}`}
         >
-          {manage ? 'Edit event' : 'View event & Reserve ↗'}
+          {manage
+            ? 'Edit event'
+            : isBooked
+            ? '✓ Booked · View details ↗'
+            : isPending
+            ? '⏳ Reserved · View details ↗'
+            : 'View event & Reserve ↗'}
         </Link>
       </div>
     </article>

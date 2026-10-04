@@ -7,11 +7,13 @@ const orderBase=`SELECT o.id,o.created_at sort_key,o.id::text||' '||u.name||' '|
 const queries={
  events:`SELECT e.id,e.starts_at sort_key,e.title||' '||e.description||' '||e.venue search_text,e.title,e.description,e.venue,
  e.starts_at AS "startsAt",e.ends_at AS "endsAt",e.status,e.currency,e.member_price_minor AS "memberPriceMinor",
- e.public_price_minor AS "publicPriceMinor",GREATEST(0,e.capacity-(SELECT count(*) FROM registrations r WHERE r.event_id=e.id AND r.status IN ('pending','confirmed')))::int AS "seatsAvailable"
- FROM events e WHERE e.status='published'`,
+ e.public_price_minor AS "publicPriceMinor",GREATEST(0,e.capacity-(SELECT count(*) FROM registrations r WHERE r.event_id=e.id AND r.status IN ('pending','confirmed')))::int AS "seatsAvailable",
+ (SELECT r.status FROM registrations r WHERE r.event_id=e.id AND r.user_id=a.uid AND r.status != 'cancelled' LIMIT 1) AS "userRegistrationStatus"
+ FROM events e CROSS JOIN access a WHERE e.status='published'`,
  'manage-events':`SELECT e.id,e.starts_at sort_key,e.title||' '||e.description||' '||e.venue||' '||e.status search_text,e.title,e.description,e.venue,
  e.starts_at AS "startsAt",e.ends_at AS "endsAt",e.status,e.currency,e.member_price_minor AS "memberPriceMinor",
- e.public_price_minor AS "publicPriceMinor",GREATEST(0,e.capacity-(SELECT count(*) FROM registrations r WHERE r.event_id=e.id AND r.status IN ('pending','confirmed')))::int AS "seatsAvailable"
+ e.public_price_minor AS "publicPriceMinor",GREATEST(0,e.capacity-(SELECT count(*) FROM registrations r WHERE r.event_id=e.id AND r.status IN ('pending','confirmed')))::int AS "seatsAvailable",
+ (SELECT r.status FROM registrations r WHERE r.event_id=e.id AND r.user_id=a.uid AND r.status != 'cancelled' LIMIT 1) AS "userRegistrationStatus"
  FROM events e CROSS JOIN access a WHERE a.organizer`,
  products:`SELECT p.id,p.created_at sort_key,p.name||' '||p.description||' '||p.category search_text,p.name,p.description,p.category,
  COALESCE((SELECT jsonb_agg(jsonb_build_object('id',v.id,'name',v.name,'priceMinor',v.price_minor,'currency',v.currency,'stockQuantity',v.stock_quantity) ORDER BY v.price_minor,v.id) FROM product_variants v WHERE v.product_id=p.id AND v.is_active),'[]'::jsonb) variants

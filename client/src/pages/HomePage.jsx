@@ -1,5 +1,5 @@
 import {Link,useNavigate} from 'react-router-dom';
-import {site,plannedModules} from '../config/site.js';
+import {site} from '../config/site.js';
 import {useAuth} from '../context/AuthContext.jsx';
 // @edit:HOME_HERO — branding/copy in config/site.js; decorative shapes contain no fake data.
 export default function HomePage(){
@@ -10,7 +10,6 @@ export default function HomePage(){
  <div className="hero-links"><Link to="/events">Find an event ↗</Link><Link to={user?'/membership':'/register'}>{user?'My membership':'Become a member'} ↗</Link></div></div>
  <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><span className="art-label">A LITTLE MORE CONNECTED.</span><div className="hero-pass"><span>{site.name.toUpperCase()}</span><strong>Your people.<br/>Your place.</strong><div className="pass-mark">↗</div><small>STUDENT ASSOCIATION / MEMBERSHIP</small></div><div className="floating-note"><span>✦</span> Ideas grow here.</div></div>
  </section>
- <section className="home-modules" id="modules"><div className="section-heading"><div><p className="eyebrow">MAKE YOURSELF AT HOME</p><h2>Everything for club life.</h2></div><p className="muted">From your first event to your next big idea.</p></div><div className="home-module-grid">{plannedModules.map(m=><Link className="home-module" to={m.href} key={m.number}><div><span className="module-index">{m.number}</span><span aria-hidden="true">↗</span></div><h3>{m.title}</h3><p>{m.description}</p></Link>)}</div></section>
  <section className="home-invitation"><div><p className="eyebrow">YOU BRING THE ENERGY</p><h2>There’s a place for you here.</h2><p>Join a task, share an idea, or simply show up.</p></div><Link className="button" to={user?'/tasks':'/register'}>{user?'Explore my tasks':'Join the community'} ↗</Link></section>
  </div>;
 }

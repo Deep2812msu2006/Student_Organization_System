@@ -90,6 +90,68 @@
   color: #64748b;
 }
 
+.event-badge-booked {
+  position: absolute;
+  top: 3.1rem;
+  left: 0.85rem;
+  background: #15803d;
+  color: #ffffff;
+  padding: 0.3rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 1;
+}
+
+.event-badge-booked.pending {
+  background: #b45309;
+}
+
+.event-card-booked-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.85rem;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.event-card-booked-banner.pending {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.event-card-ticket-link {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  flex-shrink: 0;
+}
+
+.event-card .button.button-booked {
+  background: #065f46;
+  color: #ffffff;
+  border: 1px solid #065f46;
+}
+
+.event-card .button.button-booked:hover {
+  background: #047857;
+}
+
 .event-card-content {
   padding: 1.35rem 1.4rem 1.4rem;
   display: flex;
