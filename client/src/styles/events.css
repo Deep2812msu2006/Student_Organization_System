@@ -331,23 +331,356 @@
   min-height: 130px;
 }
 
-.tickets-grid {
-  margin-top: 2rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+/* ==========================================================================
+   PREMIUM DIGITAL EVENT PASS / TICKET STYLES
+   ========================================================================== */
+
+.tickets-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 1.75rem;
+  margin-top: 1.5rem;
 }
 
-.ticket-card h2 {
-  margin-top: 1rem;
+.ticket-pass {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  box-shadow: 0 10px 25px -5px rgba(22, 60, 52, 0.07), 0 4px 10px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.ticket-card textarea {
-  font-family: monospace;
-  font-size: 0.85rem;
-  resize: vertical;
+.ticket-pass:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px -6px rgba(22, 60, 52, 0.12), 0 6px 14px rgba(0, 0, 0, 0.04);
 }
 
-.ticket-card label {
-  font-size: 0.85rem;
+/* Header with Image */
+.ticket-pass-header {
+  position: relative;
+  height: 155px;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.ticket-pass-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ticket-pass-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.88) 0%, rgba(15, 23, 42, 0.35) 50%, rgba(15, 23, 42, 0.15) 100%);
+}
+
+.ticket-pass-badges {
+  position: absolute;
+  top: 0.85rem;
+  left: 0.85rem;
+  right: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 2;
+}
+
+.ticket-status-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ticket-status-pill.confirmed {
+  background: #15803d;
+  color: #ffffff;
+}
+
+.ticket-status-pill.checked-in {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.ticket-status-pill.pending {
+  background: #d97706;
+  color: #ffffff;
+}
+
+.ticket-price-pill {
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.ticket-pass-brand {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 1rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.85);
+  text-transform: uppercase;
+  z-index: 2;
+}
+
+/* Pass Content */
+.ticket-pass-content {
+  padding: 1.25rem 1.4rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.ticket-pass-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.85rem;
+  color: var(--color-text, #0f172a);
+  line-height: 1.35;
+}
+
+.ticket-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.ticket-info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.84rem;
+  color: var(--color-muted, #475569);
+}
+
+.ticket-ref-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  background: var(--color-subtle, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.4rem;
+  color: var(--color-muted, #64748b);
+  margin-bottom: 0.35rem;
+}
+
+/* Perforation Divider */
+.ticket-perforation {
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.3rem 0;
+}
+
+.ticket-perforation::before,
+.ticket-perforation::after {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-background, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.ticket-perforation::before {
+  left: -11px;
+}
+
+.ticket-perforation::after {
+  right: -11px;
+}
+
+.ticket-perforation-line {
+  width: 100%;
+  border-top: 2px dashed #cbd5e1;
+  margin: 0 16px;
+}
+
+/* Stub / Admission Area */
+.ticket-stub {
+  padding: 0.6rem 1.4rem 1.4rem;
+  background: linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* QR Code & Code Badge */
+.ticket-qr-section {
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  padding: 0.85rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  margin-bottom: 0.85rem;
+}
+
+.ticket-qr-graphic {
+  width: 68px;
+  height: 68px;
+  flex-shrink: 0;
+  background: #0f172a;
+  border-radius: 0.5rem;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.ticket-code-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.ticket-code-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: var(--color-muted, #64748b);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.ticket-code-display {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-all;
+  background: #f1f5f9;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.35rem;
+  line-height: 1.35;
+  border: 1px solid #e2e8f0;
+}
+
+.ticket-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  padding: 0.32rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 0.35rem;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ticket-copy-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.ticket-copy-btn.copied {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+/* Checked in Stamp */
+.ticket-admitted-box {
+  background: #f0fdf4;
+  border: 1.5px dashed #22c55e;
+  border-radius: 0.85rem;
+  padding: 1rem;
+  text-align: center;
+  margin-bottom: 0.85rem;
+}
+
+.ticket-admitted-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #15803d;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+
+.ticket-admitted-desc {
+  font-size: 0.76rem;
+  color: #166534;
+  margin: 0;
+}
+
+/* Pending Reservation Notice */
+.ticket-pending-box {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 0.85rem;
+  padding: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.ticket-pending-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ticket-pending-desc {
+  font-size: 0.75rem;
+  color: #78350f;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Ticket Footer Actions */
+.ticket-pass-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: auto;
+}
+
+.ticket-pass-actions .button {
+  width: 100%;
+  text-align: center;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.85rem;
 }
 
 .nav-links {

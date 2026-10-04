@@ -39,7 +39,7 @@ const queries={
  fulfillment:orderBase+` WHERE a.organizer AND o.status='paid'`,
  'pending-registrations':`SELECT r.id,r.created_at sort_key,u.name||' '||u.email||' '||e.title search_text,r.price_minor AS "priceMinor",r.currency,u.name AS "userName",u.email AS "userEmail",e.title AS "eventTitle",r.event_id AS "eventId"
  FROM registrations r JOIN users u ON u.id=r.user_id JOIN events e ON e.id=r.event_id CROSS JOIN access a WHERE a.finance AND r.status='pending' AND e.status='published' AND e.ends_at>now()`,
- tickets:`SELECT r.id,r.created_at sort_key,e.title||' '||e.venue||' '||r.status search_text,r.price_minor AS "priceMinor",r.currency,r.status,r.checked_in_at AS "checkedInAt",e.title AS "eventTitle",e.venue AS "eventVenue",e.starts_at AS "eventStartsAt",e.ends_at AS "eventEndsAt",e.status AS "eventStatus",r.token_hash AS "_hash",r.idempotency_key AS "_key"
+ tickets:`SELECT r.id,r.created_at sort_key,e.title||' '||e.venue||' '||r.status search_text,r.price_minor AS "priceMinor",r.currency,r.status,r.checked_in_at AS "checkedInAt",e.id AS "eventId",e.title AS "eventTitle",e.venue AS "eventVenue",e.starts_at AS "eventStartsAt",e.ends_at AS "eventEndsAt",e.status AS "eventStatus",r.token_hash AS "_hash",r.idempotency_key AS "_key"
  FROM registrations r JOIN events e ON e.id=r.event_id CROSS JOIN access a WHERE r.user_id=a.uid`
 };
 export const publicResources=new Set(['events','products','announcements']);
