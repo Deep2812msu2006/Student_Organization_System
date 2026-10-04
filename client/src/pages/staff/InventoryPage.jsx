@@ -20,13 +20,15 @@ export default function InventoryPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [editingVariant, setEditingVariant] = useState(null);
+  const [deletingVariant, setDeletingVariant] = useState(null);
 
-  async function request(path, body, successMsg) {
+  async function request(path, body, successMsg, method = 'POST') {
     setBusy(true);
     setError('');
     setNotice('');
     try {
-      await api(path, { method: 'POST', body });
+      await api(path, { method, body });
       r.reload();
       orders.reload();
       catalog.reload();
@@ -37,6 +39,32 @@ export default function InventoryPage() {
       return false;
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleSaveEdit(e) {
+    e.preventDefault();
+    if (!editingVariant) return;
+    const form = e.currentTarget;
+    const v = Object.fromEntries(new FormData(form));
+    const payload = {
+      name: v.name,
+      category: v.category,
+      size: v.size,
+      priceMinor: Math.round(Number(v.price) * 100),
+      stock: Number(v.stock),
+    };
+    const id = editingVariant.variantId || editingVariant.id;
+    if (await request('/staff/inventory/' + id, payload, `Updated ${v.name} (${v.size}) successfully.`, 'PUT')) {
+      setEditingVariant(null);
+    }
+  }
+
+  async function handleDeleteVariant() {
+    if (!deletingVariant) return;
+    const id = deletingVariant.variantId || deletingVariant.id;
+    if (await request('/staff/inventory/' + id, {}, `Deleted ${deletingVariant.name} (${deletingVariant.size}) successfully.`, 'DELETE')) {
+      setDeletingVariant(null);
     }
   }
 
@@ -321,6 +349,8 @@ export default function InventoryPage() {
                       `Updated stock for ${p.name} (${p.size}) by ${delta > 0 ? '+' : ''}${delta} units.`
                     )
                   }
+                  onEdit={() => setEditingVariant(p)}
+                  onDelete={() => setDeletingVariant(p)}
                 />
               ))}
           </div>
@@ -338,6 +368,182 @@ export default function InventoryPage() {
 
           <Pagination list={list} pagination={r.data?.pagination} loading={r.loading} label="Inventory" />
         </>
+      )}
+
+      {/* Edit Product & Variant Modal */}
+      {editingVariant && (
+        <div className="modal-backdrop" style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'grid',
+          placeItems: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div className="module-form" style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            maxWidth: '560px',
+            width: '100%',
+            padding: '1.75rem',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: '#0f172a' }}>
+                ✏️ Edit Product & Variant
+              </h2>
+              <button
+                type="button"
+                className="button button-secondary"
+                style={{ padding: '0.3rem 0.65rem', fontSize: '0.8rem' }}
+                onClick={() => setEditingVariant(null)}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', margin: 0 }}>
+              <label>
+                Product Title
+                <input
+                  name="name"
+                  required
+                  defaultValue={editingVariant.name}
+                  placeholder="e.g. Skyline Vintage Dad Cap"
+                />
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <label>
+                  Category
+                  <input
+                    name="category"
+                    defaultValue={editingVariant.category || 'apparel'}
+                    placeholder="e.g. apparel, accessories"
+                  />
+                </label>
+                <label>
+                  Size / Variant Option
+                  <input
+                    name="size"
+                    required
+                    defaultValue={editingVariant.size}
+                    placeholder="e.g. Forest Green, Medium"
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <label>
+                  Retail Price (₹)
+                  <input
+                    name="price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    defaultValue={(editingVariant.priceMinor / 100).toFixed(2)}
+                  />
+                </label>
+                <label>
+                  Current Stock Units
+                  <input
+                    name="stock"
+                    type="number"
+                    min="0"
+                    max="100000"
+                    required
+                    defaultValue={editingVariant.stock}
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  disabled={busy}
+                  onClick={() => setEditingVariant(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="button"
+                  style={{ background: '#163c34', color: '#fff' }}
+                  disabled={busy}
+                >
+                  {busy ? 'Saving Changes…' : '✓ Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingVariant && (
+        <div className="modal-backdrop" style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'grid',
+          placeItems: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            maxWidth: '460px',
+            width: '100%',
+            padding: '1.75rem',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🗑️</div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', color: '#0f172a' }}>
+              Delete Variant?
+            </h3>
+            <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5 }}>
+              Are you sure you want to permanently delete <strong>{deletingVariant.name} ({deletingVariant.size})</strong>?
+            </p>
+            <div style={{
+              background: '#fef2f2',
+              border: '1px solid #fee2e2',
+              borderRadius: '8px',
+              padding: '0.75rem',
+              fontSize: '0.8rem',
+              color: '#991b1b',
+              marginBottom: '1.5rem',
+              textAlign: 'left'
+            }}>
+              ⚠️ If this item was purchased in past customer orders, deletion will be blocked to preserve financial and receipt history.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem' }}>
+              <button
+                type="button"
+                className="button button-secondary"
+                disabled={busy}
+                onClick={() => setDeletingVariant(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="button"
+                style={{ background: '#dc2626', color: '#fff' }}
+                disabled={busy}
+                onClick={handleDeleteVariant}
+              >
+                {busy ? 'Deleting…' : 'Yes, Delete Item'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* TAB 2: PICKUP DESK & FULFILLMENT */}
@@ -403,7 +609,7 @@ export default function InventoryPage() {
   );
 }
 
-function InventoryCard({ item, busy, onAdjust }) {
+function InventoryCard({ item, busy, onAdjust, onEdit, onDelete }) {
   const stock = Number(item.stock) || 0;
   const statusTier = stock > 10 ? 'healthy' : stock > 0 ? 'low' : 'out';
   const [customDelta, setCustomDelta] = useState('');
@@ -449,7 +655,7 @@ function InventoryCard({ item, busy, onAdjust }) {
       <div className={`inventory-card-stripe ${statusTier}`} />
 
       <div className="inventory-card-content">
-        {/* Top: Status Badge & Size Pill */}
+        {/* Top: Status Badge, Variant Pill & Edit/Delete Actions */}
         <div className="inventory-card-topbar">
           <span className={`inventory-stock-tag ${statusTier}`}>
             {statusTier === 'healthy' && `✓ In Stock: ${stock}`}
@@ -457,7 +663,47 @@ function InventoryCard({ item, busy, onAdjust }) {
             {statusTier === 'out' && `✕ Out of Stock`}
           </span>
 
-          <span className="inventory-variant-pill">{item.size}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span className="inventory-variant-pill">{item.size}</span>
+            <button
+              type="button"
+              className="button button-secondary"
+              title="Edit product and variant"
+              onClick={onEdit}
+              disabled={busy}
+              style={{
+                padding: '0.2rem 0.55rem',
+                fontSize: '0.74rem',
+                fontWeight: 600,
+                borderRadius: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+              }}
+            >
+              ✏️ Edit
+            </button>
+            <button
+              type="button"
+              title="Delete variant"
+              onClick={onDelete}
+              disabled={busy}
+              style={{
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#dc2626',
+                borderRadius: '6px',
+                padding: '0.2rem 0.45rem',
+                fontSize: '0.74rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}
+            >
+              🗑️
+            </button>
+          </div>
         </div>
 
         {/* Product Title */}
