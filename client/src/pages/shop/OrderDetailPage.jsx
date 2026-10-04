@@ -138,6 +138,9 @@ export default function OrderDetailPage() {
   // @rule:PENDING_ONLY_CANCEL — Customer cancellation is only allowed while order is pending.
   // Paid orders cannot be cancelled through this prototype.
   const canCancel = order.status === 'pending';
+  const isPaid = order.status === 'paid' || order.status === 'fulfilled';
+  const isFulfilled = order.status === 'fulfilled';
+  const isCancelled = order.status === 'cancelled';
 
   return (
     <section className="container shop-page">
@@ -211,6 +214,88 @@ export default function OrderDetailPage() {
             ● {order.status.toUpperCase()}
           </span>
         </div>
+
+        {/* Order Progress Stepper */}
+        {!isCancelled && (
+          <div className="order-tracker" aria-label="Order progress" style={{ margin: 'var(--space-4) 0' }}>
+            <div className="order-step completed">
+              <span className="order-step-dot">✓</span>
+              <span>Order Placed</span>
+            </div>
+            <div className={`order-step-line ${isPaid ? 'active' : ''}`} />
+            <div className={`order-step ${isPaid ? 'completed' : 'current'}`}>
+              <span className="order-step-dot">{isPaid ? '✓' : '2'}</span>
+              <span>{isPaid ? 'Payment Confirmed' : 'Payment Due'}</span>
+            </div>
+            <div className={`order-step-line ${isPaid ? 'active' : ''}`} />
+            <div className={`order-step ${isFulfilled ? 'completed' : isPaid ? 'current' : ''}`}>
+              <span className="order-step-dot">{isFulfilled ? '✓' : isPaid ? '📦' : '3'}</span>
+              <span>{isFulfilled ? 'Collected & Complete' : isPaid ? 'Awaiting Pickup (Ready)' : 'Awaiting Pickup'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Pickup Desk Callout for Paid Orders */}
+        {order.status === 'paid' && (
+          <div
+            style={{
+              padding: 'var(--space-4)',
+              background: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 'var(--space-3)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              <span style={{ fontSize: '1.8rem' }}>📍</span>
+              <div>
+                <strong style={{ color: '#065f46', fontSize: '1rem', display: 'block' }}>
+                  Ready for Campus Collection!
+                </strong>
+                <p style={{ margin: '2px 0 0', fontSize: '0.84rem', color: '#047857' }}>
+                  Your items are reserved and packaged. Visit the <strong>Student Association Merchandise Desk</strong> and show <strong>Order #{shortOrderId(order.id)}</strong> to collect.
+                </p>
+              </div>
+            </div>
+            {user?.roles?.includes('organizer') && (
+              <Link
+                to="/staff/inventory"
+                className="button button-secondary"
+                style={{ fontSize: '0.82rem', padding: '0.4rem 0.8rem', whiteSpace: 'nowrap' }}
+              >
+                Go to Staff Pickup Desk →
+              </Link>
+            )}
+          </div>
+        )}
+
+        {order.status === 'fulfilled' && (
+          <div
+            style={{
+              padding: 'var(--space-4)',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-3)',
+            }}
+          >
+            <span style={{ fontSize: '1.6rem' }}>🎉</span>
+            <div>
+              <strong style={{ color: '#0f172a', fontSize: '0.98rem', display: 'block' }}>
+                Order Collected & Fulfilled
+              </strong>
+              <p style={{ margin: '2px 0 0', fontSize: '0.82rem', color: '#64748b' }}>
+                This order was handed over on {date(order.fulfilledAt || order.updatedAt)}. Enjoy your Skyline club merchandise!
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="story-note" style={{ margin: 0 }}>
           <strong>Status details:</strong>

@@ -149,22 +149,46 @@ export default function OrdersPage() {
 
                 {/* Progress Stepper */}
                 {!isCancelled ? (
-                  <div className="order-tracker" aria-label="Order progress">
-                    <div className="order-step completed">
-                      <span className="order-step-dot">✓</span>
-                      <span>Order Placed</span>
+                  <>
+                    <div className="order-tracker" aria-label="Order progress">
+                      <div className="order-step completed">
+                        <span className="order-step-dot">✓</span>
+                        <span>Order Placed</span>
+                      </div>
+                      <div className={`order-step-line ${isPaid ? 'active' : ''}`} />
+                      <div className={`order-step ${isPaid ? 'completed' : 'current'}`}>
+                        <span className="order-step-dot">{isPaid ? '✓' : '2'}</span>
+                        <span>{isPaid ? 'Payment Confirmed' : 'Payment Due'}</span>
+                      </div>
+                      <div className={`order-step-line ${isPaid ? 'active' : ''}`} />
+                      <div className={`order-step ${isFulfilled ? 'completed' : isPaid ? 'current' : ''}`}>
+                        <span className="order-step-dot">{isFulfilled ? '✓' : isPaid ? '📦' : '3'}</span>
+                        <span>{isFulfilled ? 'Collected' : isPaid ? 'Awaiting Pickup (Ready)' : 'Awaiting Pickup'}</span>
+                      </div>
                     </div>
-                    <div className={`order-step-line ${isPaid ? 'active' : ''}`} />
-                    <div className={`order-step ${isPaid ? 'completed' : 'current'}`}>
-                      <span className="order-step-dot">{isPaid ? '✓' : '2'}</span>
-                      <span>{isPaid ? 'Payment Confirmed' : 'Payment Due'}</span>
-                    </div>
-                    <div className={`order-step-line ${isFulfilled ? 'active' : ''}`} />
-                    <div className={`order-step ${isFulfilled ? 'completed' : ''}`}>
-                      <span className="order-step-dot">{isFulfilled ? '✓' : '3'}</span>
-                      <span>{isFulfilled ? 'Collected' : 'Awaiting Pickup'}</span>
-                    </div>
-                  </div>
+
+                    {o.status === 'paid' && (
+                      <div
+                        style={{
+                          marginTop: '0.6rem',
+                          padding: '0.45rem 0.85rem',
+                          background: '#ecfdf5',
+                          border: '1px solid #a7f3d0',
+                          borderRadius: '8px',
+                          fontSize: '0.8rem',
+                          color: '#065f46',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <span style={{ fontSize: '1rem' }}>📍</span>
+                        <span>
+                          <strong>Ready for Campus Pickup:</strong> Present <strong>Order #{shortOrderId(o.id)}</strong> at the Student Association Merchandise Desk to collect your items.
+                        </span>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.65rem 1rem', fontSize: '0.85rem', color: '#64748b' }}>
                     ✕ This order was cancelled. Reserved items were restored to club inventory.
