@@ -225,7 +225,7 @@ export default function OrderDetailPage() {
             <div className={`order-step-line ${isPaid ? 'active' : ''}`} />
             <div className={`order-step ${isPaid ? 'completed' : 'current'}`}>
               <span className="order-step-dot">{isPaid ? '✓' : '2'}</span>
-              <span>{isPaid ? 'Payment Confirmed' : 'Payment Due'}</span>
+              <span>{isPaid ? 'Payment Confirmed' : 'Awaiting Staff Payment Confirmation'}</span>
             </div>
             <div className={`order-step-line ${isPaid ? 'active' : ''}`} />
             <div className={`order-step ${isFulfilled ? 'completed' : isPaid ? 'current' : ''}`}>
