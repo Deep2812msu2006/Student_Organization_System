@@ -6,6 +6,14 @@ import { useResource } from '../../hooks/useResource.js';
 import { api } from '../../services/api.js';
 import ModulePanel from '../../components/ModulePanel.jsx';
 
+function toDatetimeLocal(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // @edit:TASKS_UI — volunteer assignment and progress tracker
 export default function TasksPage() {
   const { user } = useAuth();
@@ -19,6 +27,10 @@ export default function TasksPage() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
+
+  // Edit & Delete state
+  const [editingTask, setEditingTask] = useState(null);
+  const [deletingTask, setDeletingTask] = useState(null);
 
   useEffect(() => {
     if (staff) {
@@ -55,6 +67,44 @@ export default function TasksPage() {
     setError('');
     try {
       await api('/tasks/' + id, { method: 'PATCH', body: { status } });
+      r.reload();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSaveEdit(e) {
+    e.preventDefault();
+    if (!editingTask) return;
+    const f = e.currentTarget;
+    const v = Object.fromEntries(new FormData(f));
+    v.dueAt = v.dueAt ? new Date(v.dueAt).toISOString() : null;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await api(`/tasks/${editingTask.id}`, { method: 'PUT', body: v });
+      setEditingTask(null);
+      setNotice('Task updated successfully.');
+      r.reload();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!deletingTask) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await api(`/tasks/${deletingTask.id}`, { method: 'DELETE' });
+      setDeletingTask(null);
+      setNotice('Task deleted successfully.');
       r.reload();
     } catch (e) {
       setError(e.message);
@@ -220,7 +270,15 @@ export default function TasksPage() {
       <div className="tasks-grid">
         {!r.loading &&
           filteredTasks.map((t) => (
-            <TaskCard key={t.id} task={t} busy={busy} onUpdate={update} />
+            <TaskCard
+              key={t.id}
+              task={t}
+              busy={busy}
+              staff={staff}
+              onUpdate={update}
+              onEdit={setEditingTask}
+              onDelete={setDeletingTask}
+            />
           ))}
       </div>
 
@@ -232,11 +290,189 @@ export default function TasksPage() {
       )}
 
       <Pagination list={list} pagination={r.data?.pagination} loading={r.loading} label="tasks" />
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEditingTask(null);
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '1.75rem',
+              maxWidth: '540px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>✏️ Edit Volunteer Task</h2>
+              <button
+                type="button"
+                onClick={() => setEditingTask(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '1.25rem',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="module-form" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <label>
+                <strong>Task Title</strong>
+                <input
+                  name="title"
+                  defaultValue={editingTask.title}
+                  minLength="3"
+                  maxLength="160"
+                  required
+                />
+              </label>
+
+              <label>
+                <strong>Description</strong>
+                <textarea
+                  name="description"
+                  defaultValue={editingTask.description || ''}
+                  maxLength="3000"
+                  rows="3"
+                />
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                <label>
+                  <strong>Assign to</strong>
+                  <select name="assigneeId" defaultValue={editingTask.assigneeId || ''} required>
+                    <option value="">Choose a volunteer…</option>
+                    {people.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.email})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <strong>Status</strong>
+                  <select name="status" defaultValue={editingTask.status || 'todo'}>
+                    <option value="todo">○ To Do</option>
+                    <option value="in_progress">⚡ In Progress</option>
+                    <option value="done">✓ Done</option>
+                  </select>
+                </label>
+              </div>
+
+              <label>
+                <strong>Due Date (optional)</strong>
+                <input
+                  type="datetime-local"
+                  name="dueAt"
+                  defaultValue={toDatetimeLocal(editingTask.dueAt)}
+                />
+              </label>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => setEditingTask(null)}
+                  disabled={busy}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="button" disabled={busy}>
+                  {busy ? 'Saving changes…' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Task Confirmation Modal */}
+      {deletingTask && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDeletingTask(null);
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '1.75rem',
+              maxWidth: '460px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+            }}
+          >
+            <h3 style={{ margin: '0 0 0.75rem', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>🗑️</span> Delete Task
+            </h3>
+            <p style={{ margin: '0 0 1.25rem', color: '#334155', lineHeight: 1.5 }}>
+              Are you sure you want to permanently delete <strong>&ldquo;{deletingTask.title}&rdquo;</strong>? This task and its history will be removed.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => setDeletingTask(null)}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="button"
+                style={{ background: '#dc2626', color: '#fff', border: '1px solid #b91c1c' }}
+                onClick={handleConfirmDelete}
+                disabled={busy}
+              >
+                {busy ? 'Deleting…' : 'Yes, Delete Task'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </ModulePanel>
   );
 }
 
-function TaskCard({ task, busy, onUpdate }) {
+function TaskCard({ task, busy, staff, onUpdate, onEdit, onDelete }) {
   const isDone = task.status === 'done';
   const isOverdue = task.dueAt && new Date(task.dueAt) < new Date() && !isDone;
 
@@ -247,8 +483,8 @@ function TaskCard({ task, busy, onUpdate }) {
       <div className={`task-card-stripe ${task.status}`} />
 
       <div className="task-card-body">
-        {/* Top Status and Due Date */}
-        <div className="task-card-top">
+        {/* Top Status, Action Buttons, and Due Date */}
+        <div className="task-card-top" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
           <span className={`task-status-tag ${task.status}`}>
             {task.status === 'done'
               ? '✓ Done'
@@ -257,7 +493,37 @@ function TaskCard({ task, busy, onUpdate }) {
               : '○ To Do'}
           </span>
 
-          <div className={`task-due-date ${isOverdue ? 'overdue' : ''}`}>
+          {staff && (
+            <div style={{ display: 'flex', gap: '0.35rem', marginLeft: 'auto' }}>
+              <button
+                type="button"
+                className="button button-secondary"
+                style={{ padding: '0.2rem 0.55rem', fontSize: '0.78rem', borderRadius: '6px' }}
+                onClick={() => onEdit(task)}
+                title="Edit Task"
+              >
+                ✏️ Edit
+              </button>
+              <button
+                type="button"
+                className="button"
+                style={{
+                  padding: '0.2rem 0.55rem',
+                  fontSize: '0.78rem',
+                  borderRadius: '6px',
+                  background: '#fee2e2',
+                  color: '#b91c1c',
+                  border: '1px solid #fca5a5',
+                }}
+                onClick={() => onDelete(task)}
+                title="Delete Task"
+              >
+                🗑️ Delete
+              </button>
+            </div>
+          )}
+
+          <div className={`task-due-date ${isOverdue ? 'overdue' : ''}`} style={{ width: '100%', marginTop: '0.25rem' }}>
             <span>📅</span>
             <span>
               {task.dueAt

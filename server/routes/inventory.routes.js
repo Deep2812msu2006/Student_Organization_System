@@ -31,6 +31,41 @@ export function inventoryRouter(pool){
  if(!rows[0])throw new HttpError(409,'STOCK_CONFLICT','Variant missing or adjustment would make stock invalid. Refresh stock before trying again.');
  res.json({data:rows[0]});
  });
+ r.put('/staff/inventory/:id',auth,staff,requireCsrf,validate(Joi.object({
+  name:Joi.string().trim().min(2).max(100).optional(),
+  category:Joi.string().trim().max(50).optional(),
+  size:Joi.string().trim().max(50).optional(),
+  priceMinor:Joi.number().integer().min(0).max(100000000).optional(),
+  stock:Joi.number().integer().min(0).max(100000).optional()
+ })),async(req,res)=>{
+  const v=req.validated;
+  const data=await transaction(pool,async db=>{
+   const {rows:vRows}=await db.query('SELECT * FROM product_variants WHERE id=$1',[req.params.id]);
+   if(!vRows[0])throw new HttpError(404,'NOT_FOUND','Variant not found.');
+   const current=vRows[0];
+   if(v.name||v.category){
+    await db.query('UPDATE products SET name=COALESCE($2,name),category=COALESCE($3,category),updated_at=now() WHERE id=$1',[current.product_id,v.name||null,v.category||null]);
+   }
+   const {rows:updatedVar}=await db.query(
+    'UPDATE product_variants SET name=COALESCE($2,name),price_minor=COALESCE($3,price_minor),stock_quantity=COALESCE($4,stock_quantity),updated_at=now() WHERE id=$1 RETURNING id,name AS size,price_minor AS "priceMinor",stock_quantity AS stock',
+    [req.params.id,v.size||null,v.priceMinor!==undefined?v.priceMinor:null,v.stock!==undefined?v.stock:null]
+   );
+   return updatedVar[0];
+  });res.json({data});
+ });
+ r.delete('/staff/inventory/:id',auth,staff,requireCsrf,async(req,res)=>{
+  const {rowCount:hasOrders}=await pool.query('SELECT 1 FROM order_items WHERE variant_id=$1 LIMIT 1',[req.params.id]);
+  if(hasOrders){
+   throw new HttpError(409,'CANNOT_DELETE_ACTIVE_ORDER','Cannot delete this variant because it is referenced in past customer orders. You can set stock to 0 or edit its details instead.');
+  }
+  const {rows}=await pool.query('DELETE FROM product_variants WHERE id=$1 RETURNING product_id',[req.params.id]);
+  if(!rows[0])throw new HttpError(404,'NOT_FOUND','Variant not found.');
+  const {rowCount:remaining}=await pool.query('SELECT 1 FROM product_variants WHERE product_id=$1 LIMIT 1',[rows[0].product_id]);
+  if(!remaining){
+   await pool.query('DELETE FROM products WHERE id=$1',[rows[0].product_id]);
+  }
+  res.json({data:{deleted:true,id:req.params.id}});
+ });
  r.get('/staff/orders/fulfillment',auth,staff,async(req,res)=>res.json({data:(await pool.query(`SELECT o.id,u.name,o.total_minor AS "totalMinor",o.currency,o.status FROM orders o JOIN users u ON u.id=o.user_id WHERE o.status='paid' ORDER BY o.created_at LIMIT 100`)).rows}));
  r.post('/staff/orders/:id/fulfill',auth,staff,requireCsrf,async(req,res)=>{
  const {rows}=await pool.query("UPDATE orders SET status='fulfilled',fulfilled_at=COALESCE(fulfilled_at,now()),updated_at=now() WHERE id=$1 AND status IN ('paid','fulfilled') RETURNING id,status",[req.params.id]);

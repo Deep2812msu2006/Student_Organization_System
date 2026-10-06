@@ -30,7 +30,7 @@ export function communityRouter(pool) {
    await model.queueAnnouncement(db,rows[0]);return rows[0];
   });res.json({data});
  });
- // @flow:ANNOUNCEMENT_EDIT — publishing from the edit form must also queue the mailing list.
+ // @flow:ANNOUNCEMENT_EDIT ï¿½ publishing from the edit form must also queue the mailing list.
  const editAnnouncement=async(req,res)=>{
   const {title,body,audience,status}=req.validated;
   const data=await transaction(pool,async db=>{
@@ -84,5 +84,29 @@ export function communityRouter(pool) {
    const result=await db.query('UPDATE volunteer_tasks SET status=$2,updated_at=now() WHERE id=$1 RETURNING *',[req.params.id,req.validated.status]);
    await db.query('INSERT INTO task_history(task_id,actor_id,status) VALUES($1,$2,$3)',[req.params.id,req.user.id,req.validated.status]);return result.rows[0];
   });res.json({data});
- });return r;
+ }); r.put('/tasks/:id',auth,staff,requireCsrf,validate(Joi.object({
+  title:Joi.string().trim().min(3).max(160).optional(),
+  description:Joi.string().allow('').max(3000).optional(),
+  assigneeId:id.optional(),
+  eventId:id.allow(null).optional(),
+  dueAt:Joi.string().isoDate().allow(null).optional(),
+  status:Joi.string().valid('todo','in_progress','done').optional()
+ })),async(req,res)=>{
+  const v=req.validated;
+  const data=await transaction(pool,async db=>{
+   const {rows:current}=await db.query('SELECT * FROM volunteer_tasks WHERE id=',[req.params.id]);
+   if(!current[0])throw new HttpError(404,'NOT_FOUND','Task not found.');
+   if(v.assigneeId&&!(await db.query('SELECT 1 FROM users WHERE id=',[v.assigneeId])).rowCount) throw new HttpError(400,'INVALID_ASSIGNEE','Assignee not found.');
+   const {rows}=await db.query('UPDATE volunteer_tasks SET title=COALESCE(,title),description=COALESCE(,description),assignee_id=COALESCE(,assignee_id),event_id=CASE WHEN ::text IS NOT NULL THEN ::uuid ELSE event_id END,due_at=CASE WHEN ::text IS NOT NULL THEN ::timestamptz ELSE due_at END,status=COALESCE(,status),updated_at=now() WHERE id= RETURNING *',[req.params.id,v.title||null,v.description!==undefined?v.description:null,v.assigneeId||null,v.eventId!==undefined?v.eventId:null,v.dueAt!==undefined?v.dueAt:null,v.status||null]);
+   await db.query('INSERT INTO task_history(task_id,actor_id,status) VALUES(,,)',[req.params.id,req.user.id,rows[0].status]);
+   return rows[0];
+  });res.json({data});
+ });
+ r.delete('/tasks/:id',auth,staff,requireCsrf,async(req,res)=>{
+  await pool.query('DELETE FROM task_history WHERE task_id=',[req.params.id]);
+  const {rows}=await pool.query('DELETE FROM volunteer_tasks WHERE id= RETURNING id',[req.params.id]);
+  if(!rows[0])throw new HttpError(404,'NOT_FOUND','Task not found.');
+  res.json({data:{deleted:true,id:req.params.id}});
+ });
+return r;
 }

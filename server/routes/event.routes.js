@@ -19,6 +19,16 @@ export function eventRouter(pool,config){
   router.get('/organizer/events/:id',auth,staff,async(req,res)=>res.json({data:await service.detail(pool,req.params.id,req.user.id,true)}));
   router.post('/events',requireCsrf,auth,staff,validate(eventSchema),async(req,res)=>{service.validateDates(req.validated);res.status(201).json({data:await model.createEvent(pool,{...req.validated,createdBy:req.user.id})});});
   router.patch('/events/:id',requireCsrf,auth,staff,validate(eventPatchSchema),async(req,res)=>res.json({data:await service.editEvent(pool,req.params.id,req.validated)}));
+  router.delete('/events/:id',requireCsrf,auth,staff,async(req,res)=>{
+    const {rowCount:hasRegs}=await pool.query('SELECT 1 FROM registrations WHERE event_id=$1 LIMIT 1',[req.params.id]);
+    if(hasRegs){
+      await pool.query("UPDATE events SET status='cancelled',updated_at=now() WHERE id=$1",[req.params.id]);
+      return res.json({data:{cancelled:true,message:'Event has registrations and was set to Cancelled.'}});
+    }
+    const {rows}=await pool.query('DELETE FROM events WHERE id=$1 RETURNING id',[req.params.id]);
+    if(!rows[0])throw new HttpError(404,'NOT_FOUND','Event not found.');
+    res.json({data:{deleted:true,id:req.params.id}});
+  });
   router.post('/events/:id/registrations',requireCsrf,auth,validate(bookingSchema),async(req,res)=>{
     const key=idempotencySchema.safeParse(req.get('Idempotency-Key'));
     if(!key.success)throw new HttpError(400,'INVALID_IDEMPOTENCY_KEY','Supply a 16–100 character Idempotency-Key header (letters, digits, underscore or hyphen).');
