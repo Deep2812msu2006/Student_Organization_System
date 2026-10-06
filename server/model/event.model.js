@@ -1,3 +1,4 @@
+
 /**
  * server/model/event.model.js — Deep owns this file.
  *
@@ -30,14 +31,13 @@
  * @param {{ page?: number, pageSize?: number }} [params]
  * @returns {Promise<{ rows: Array<object>, total: number, page: number, pageSize: number }>}
  */
-export async function listPublishedEvents(db, { page = 1, pageSize = 20, includeUnpublished = false } = {}) {
+export async function listPublishedEvents(db, { page = 1, pageSize = 20 } = {}) {
   const safePage = Math.max(1, parseInt(page, 10) || 1);
   const safePageSize = Math.min(50, Math.max(1, parseInt(pageSize, 10) || 20));
   const offset = (safePage - 1) * safePageSize;
-  const statuses = includeUnpublished ? ['draft', 'published', 'cancelled'] : ['published'];
 
   const countResult = await db.query(
-    `SELECT COUNT(*)::int AS total FROM events WHERE status = ANY($1::text[])`, [statuses]
+    `SELECT COUNT(*)::int AS total FROM events WHERE status = 'published'`
   );
   const total = countResult.rows[0]?.total ?? 0;
 
@@ -63,10 +63,10 @@ export async function listPublishedEvents(db, { page = 1, pageSize = 20, include
        WHERE status IN ('pending', 'confirmed')
        GROUP BY event_id
      ) reg ON reg.event_id = e.id
-     WHERE e.status = ANY($3::text[])
+     WHERE e.status = 'published'
      ORDER BY e.starts_at ASC, e.id ASC
      LIMIT $1 OFFSET $2`,
-    [safePageSize, offset, statuses]
+    [safePageSize, offset]
   );
 
   return {
@@ -336,7 +336,6 @@ export async function listUserTickets(db, userId) {
   const { rows } = await db.query(
     `SELECT
        r.id,
-       e.status AS "eventStatus",
        r.event_id AS "eventId",
        r.price_minor AS "priceMinor",
        r.currency,
@@ -443,18 +442,4 @@ export async function updateRegistrationStatus(client, { registrationId, status 
   );
 
   return rows[0] ?? null;
-}
-
-// Additive Step 4 model: caller holds the same event row lock as registrations.
-export async function updateEvent(client, eventId, event) {
-  await client.query(`UPDATE events SET title=$2,description=$3,venue=$4,starts_at=$5,ends_at=$6,
-    capacity=$7,member_price_minor=$8,public_price_minor=$9,currency=$10,status=$11,updated_at=now()
-    WHERE id=$1`, [eventId,event.title,event.description,event.venue,event.startsAt,event.endsAt,
-    event.capacity,event.memberPriceMinor,event.publicPriceMinor,event.currency,event.status]);
-  return getEventById(client,eventId);
-}
-
-// Internal credential lookup is deliberately separate from the safe ticket-list model.
-export async function ownedTicketCredentials(db,userId){
-  return (await db.query('SELECT id,token_hash AS "tokenHash",idempotency_key AS "idempotencyKey" FROM registrations WHERE user_id=$1',[userId])).rows;
 }
